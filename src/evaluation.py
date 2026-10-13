@@ -3,11 +3,11 @@ evaluation.py — 방법 비교와 평가 (모듈 1)
 
 1) 라벨 없이 비교 : compare_alarms — 개인 vs 집단 기준선이 '같은 날, 같은 사람'에게 울리는지
 2) 가짜 이탈 주입 : inject_drift → evaluate_injection → results_table / wilcoxon_table / plot_person_box
-   - 정상 구간 14일에 일부러 변화를 넣고(예: 걸음 −30%) 잡아내는지 봐요
-   - 대조군: 같은 구간을 주입 없이 한 번 더 돌려서 '원래도 울렸을' 경보를 빼요
+   - 정상 구간 14일에 일부러 변화를 넣고(예: 걸음 −30%) 잡아내는지 봄
+   - 대조군: 같은 구간을 주입 없이 한 번 더 돌려서 '원래도 울렸을' 경보를 뺌
    - 경보 기준값: 대조군 전체에서 하루 오경보율이 3.3%(ALARM_RATE)가 되도록 **하나만** 정함
    - 사람마다 계산한 뒤 분포(중앙값, 박스플롯, Wilcoxon)로 보고
-   - 정확도·F1·AUROC만 단독으로 쓰지 않아요
+   - 정확도·F1·AUROC만 단독으로 쓰지 않음
 3) 결과 기록 : log_result → results/results.csv
 """
 import os
@@ -33,7 +33,7 @@ def _person_rate_summary(alarm, pid):
 
 def compare_alarms(df, score_a, score_b, rate=ALARM_RATE):
     """
-    라벨이 없을 때 두 방법(A, B)을 비교해요.
+    라벨이 없을 때 두 방법(A, B)을 비교함.
     둘 다 '두 점수가 모두 있는 날' 전체에서 rate(3.3%)만 경보가 울리도록 기준값을 **하나씩** 정한 뒤:
       같은날비율     : A가 울린 날 중 B도 울린 비율
       0번인사람      : (A, B) 경보가 한 번도 안 울린 사람 수
@@ -61,7 +61,7 @@ def compare_alarms(df, score_a, score_b, rate=ALARM_RATE):
 def inject_drift(df, col, effect, mode='relative', length=14, shape='sudden', seed=SEED,
                  window=bl.WINDOW, min_periods=bl.MIN_PERIODS, min_days_in=7):
     """
-    사람마다 '정상 구간' 하나를 골라 length일 동안 col 값을 일부러 바꿔요 (모듈 1 평가용).
+    사람마다 '정상 구간' 하나를 골라 length일 동안 col 값을 일부러 바꿈 (모듈 1 평가용).
 
     구간 고르는 규칙 (사람마다 무작위, seed로 고정)
       - 시작일 직전 달력 window(28)일에 기록이 min_periods(14)일 이상 → 기준선을 만들 수 있음
@@ -72,7 +72,7 @@ def inject_drift(df, col, effect, mode='relative', length=14, shape='sudden', se
       mode='absolute' : 값 + effect         예) effect=120  → 잠든 시각 2시간 늦어짐
       shape='sudden'  : 첫날부터 effect 전부 (갑자기)
       shape='gradual' : 1/length → 1까지 매일 조금씩 커짐 (서서히)
-    빈 날은 빈 채로 둬요 (채우지 않음).
+    빈 날은 빈 채로 둠 (채우지 않음).
 
     반환: (바뀐 df 복사본, 구간표 pid | start | end)
     """
@@ -108,7 +108,7 @@ def inject_drift(df, col, effect, mode='relative', length=14, shape='sudden', se
 
 
 def _segment_rows(df, seg):
-    """df에서 구간표(seg) 안에 드는 줄만 골라 start를 붙여 돌려줘요 (index는 df 그대로)."""
+    """df에서 구간표(seg) 안에 드는 줄만 골라 start를 붙여 돌려줌 (index는 df 그대로)."""
     m = df[['pid', 'date']].reset_index().merge(seg, on='pid')
     m = m[(m['date'] >= m['start']) & (m['date'] <= m['end'])]
     return m.set_index('index')[['pid', 'date', 'start']]
@@ -116,7 +116,7 @@ def _segment_rows(df, seg):
 
 def method_scores(df, col, dow_adjust=False, k=0.5, h=None, min_n=bl.GROUP_MIN_N, seed=SEED):
     """
-    비교할 방법 5개의 하루 점수를 한 표로 만들어요 (모두 '클수록 이상').
+    비교할 방법 5개의 하루 점수를 한 표로 만듦 (모두 '클수록 이상').
       무작위             : 데이터와 상관없는 난수 (seed 고정). 우연 수준 비교용
       단일 z(|z|)        : 개인 기준선 z의 절댓값. 방향 구분 없이 '평소와 다르면' 경보
       개인 기준선        : 개인 기준선 z를 '나빠지는 방향'으로 맞춘 점수
@@ -140,7 +140,7 @@ def method_scores(df, col, dow_adjust=False, k=0.5, h=None, min_n=bl.GROUP_MIN_N
 def evaluate_injection(df, col, effect, mode='relative', shape='sudden', length=14, n_reps=10,
                        seed=SEED, rate=ALARM_RATE, dow_adjust=False, k=0.5, score_fn=None):
     """
-    가짜 이탈 주입 평가 (모듈 1). n_reps번 반복(시드 seed, seed+1, ...)해서 사람마다 비율을 내요.
+    가짜 이탈 주입 평가 (모듈 1). n_reps번 반복(시드 seed, seed+1, ...)해서 사람마다 비율을 냄.
 
     절차
       1) 대조군: 주입 없는 원래 데이터로 방법별 점수 계산
@@ -221,7 +221,7 @@ def evaluate_injection(df, col, effect, mode='relative', shape='sudden', length=
 
 def results_table(res, order=None):
     """
-    방법들을 한 표로 정리해요. 숫자는 모두 '사람별 값의 중앙값'.
+    방법들을 한 표로 정리함. 숫자는 모두 '사람별 값의 중앙값'.
       | 방법 | 탐지율 | 오경보율 | 차이 | 탐지 지연 | 하루 오경보율 | 전체 하루 오경보율 | PR-AUC(보조) | 사람 수 |
       탐지율   : 주입 구간 14일 안에 경보가 하루라도 울린 비율 (주 지표)
       오경보율 : 같은 구간을 주입 없이 돌렸을 때 경보가 울린 비율
@@ -244,7 +244,7 @@ def results_table(res, order=None):
 
 def wilcoxon_table(res, metric='차이', ref='개인 기준선'):
     """
-    방법 간 차이가 우연인지 사람 단위 짝지은 검정(Wilcoxon 부호순위)으로 확인해요.
+    방법 간 차이가 우연인지 사람 단위 짝지은 검정(Wilcoxon 부호순위)으로 확인함.
     ref 방법과 나머지 방법을 같은 사람끼리 짝지어 metric을 비교.
     반환: | 방법 | 비교 대상 | 사람 수 | 중앙값 차이(방법−ref) | p값 |
     """
@@ -263,7 +263,7 @@ def wilcoxon_table(res, metric='차이', ref='개인 기준선'):
 
 
 def plot_person_box(res, metric='차이', ax=None, order=None):
-    """사람별 metric 분포를 방법마다 박스플롯으로 그려요."""
+    """사람별 metric 분포를 방법마다 박스플롯으로 그림."""
     import matplotlib.pyplot as plt
     pp_ = res['per_person']
     order = order or list(res['threshold'].keys())
@@ -282,7 +282,7 @@ def plot_person_box(res, metric='차이', ax=None, order=None):
 # ---------------------------------------------------------------------------
 def log_result(who, dataset, method, setting, metrics, path=None):
     """
-    결과 한 줄을 results/results.csv에 추가해요 (results/는 커밋하지 않아요).
+    결과 한 줄을 results/results.csv에 추가함 (results/는 커밋하지 않음).
       who     : 이름
       dataset : 'NetHealth' 등
       method  : '개인 기준선', '집단 기준선' 등
@@ -307,7 +307,7 @@ def log_result(who, dataset, method, setting, metrics, path=None):
 
 
 def log_table(table, who, dataset, setting, path=None):
-    """results_table 결과를 방법마다 한 줄씩 log_result로 기록해요."""
+    """results_table 결과를 방법마다 한 줄씩 log_result로 기록함."""
     for _, r in table.iterrows():
         m = r.drop('방법').to_dict()
         log_result(who, dataset, r['방법'], setting, m, path=path)

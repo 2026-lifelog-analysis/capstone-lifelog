@@ -82,8 +82,10 @@ def test_filter_min_days():
     assert set(pp.filter_min_days(d)['pid']) == {'a'}
 
 
-def test_split_device_period():
-    d = pd.DataFrame({'pid': 'a', 'date': pd.to_datetime(['2017-12-31', '2018-01-01'])})
-    assert len(pp.split_device_period(d, 'before')) == 1
-    assert len(pp.split_device_period(d, 'after')) == 1
-    assert len(pp.split_device_period(d, 'all')) == 2
+def test_split_study_phase():
+    # 기본 경계 2017-08-13: 전날까지 1~2학년, 그날부터 3~4학년
+    d = pd.DataFrame({'pid': 'a', 'date': pd.to_datetime(['2017-08-12', '2017-08-13'])})
+    assert pp.PHASE_CUTOFF == '2017-08-13'
+    assert list(pp.split_study_phase(d, 'before')['date']) == [pd.Timestamp('2017-08-12')]
+    assert list(pp.split_study_phase(d, 'after')['date']) == [pd.Timestamp('2017-08-13')]
+    assert len(pp.split_study_phase(d, 'all')) == 2

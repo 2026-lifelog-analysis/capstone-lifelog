@@ -5,8 +5,6 @@
 - 팀: 김민준, 박고은, 조서연, 진승호
 - 지도교수: 장혜령 교수님
 
-⚠️ 초안: 기기 교체 날짜, Calendar.csv 형식은 확인 후 반영 예정
-
 ## 프로젝트 개요
 - **모듈 1. 기준선 이탈 탐지**: 개인의 과거 기록으로 "평소"를 만들고, 오늘이 평소에서 얼마나 벗어났는지 계산
 - **모듈 2. 상태 판단**: 그 이탈이 실제 상태 악화와 관련 있는지 확인
@@ -24,8 +22,8 @@
 ```
 capstone-lifelog/
 ├── src/
-│   ├── data_loader.py      # load_nethealth (+ Calendar.csv 있으면 term_tag)
-│   ├── preprocessing.py    # 중복 제거, 착용 필터, 수면 병합, 42일 필터, 요일 보정, 기기 교체 구간
+│   ├── data_loader.py      # load_nethealth (+ Calendar.csv 있으면 study_week, term_tag, event_tag)
+│   ├── preprocessing.py    # 중복 제거, 착용 필터, 수면 병합, 42일 필터, 요일 보정, 연구 기간 나누기
 │   ├── baseline.py         # personal_z, group_z, rolling_mean, rolling_slope, cusum, bad_score
 │   └── evaluation.py       # compare_alarms, 가짜 이탈 주입, 주입 평가, 결과표, log_result
 ├── notebooks/
@@ -49,9 +47,13 @@ pip install -r requirements.txt
 data/nethealth/
 ├── FitbitActivity(1-30-20).csv   # 하루 활동 (필수)
 ├── FitbitSleep(1-30-20).csv      # 수면 조각 (필수)
-└── Calendar.csv                  # 학사 달력 (선택) — 있으면 term_tag 열이 붙음
+└── Calendar.csv                  # 학사 달력 (선택) — 있으면 study_week, term_tag, event_tag 열이 붙음
 ```
-- `Calendar.csv` 형식: `date, term_tag` (하루 한 줄) 또는 `start, end, term_tag` (기간 한 줄). ⚠️ 실제 파일 받은 뒤 형식 확인 필요
+- `Calendar.csv` 형식 (NetHealth 원본 그대로): 주 단위 한 줄, 0~194주 (2015-08-16 ~ 2019-05-11)
+  - 열: `Study Week, Begin Date, End date, Event, Beginning event date, End event date`
+  - 날짜는 `20150823` 같은 숫자. 사건 날짜가 비어 있으면(Christmas, Orientation 등) 그 주 Begin~End 전체를 사건 기간으로 봄
+  - Event 이름 표기가 제각각이라(Class begins/Classes begin, Final exams/Final exam, Mid-term/Mid-Term/fall/Spring break 등) 대소문자·단수/복수를 무시하고 같은 사건으로 처리함 (`dl.CAL_EVENTS`)
+  - 파일이 없으면 세 열 없이 경고만 내고 진행함
 - `data/`는 `.gitignore`에 있어서 커밋되지 않습니다. **데이터는 절대 커밋하지 않습니다**
 
 ## 사용법
@@ -66,6 +68,8 @@ ev.compare_alarms(nh, 'p', 'g')                                     # 라벨 없
 res = ev.evaluate_injection(nh, 'steps', -0.3)                      # 걸음 30% 감소 주입 평가
 ev.results_table(res)
 ```
+노트북 02는 결과를 남길 때만 `WHO`를 내 이름으로, `SAVE = True`로 바꿔 실행 (기본은 `results/results.csv`에 기록 안 함)
+
 테스트: 레포 맨 위에서 `pytest`
 
 ## 하루 표 열
@@ -82,7 +86,9 @@ ev.results_table(res)
 | `dow` | 요일 (0=월 ~ 6=일) |
 | `wake_min` | 일어난 시각, 18시부터 분 (07:00 → 780) |
 | `n_episodes` | 그날 수면 조각 수 |
-| `term_tag` | 학기/방학/시험/휴일 (`Calendar.csv`가 있을 때만) |
+| `study_week` | 연구 주차 0~194 (`Calendar.csv`가 있을 때만. 아래 두 열도 같음, 달력 범위 밖 날은 빈칸) |
+| `term_tag` | `학기` = 개강일 ~ 그 학기 기말고사 끝난 날, 나머지는 `방학` |
+| `event_tag` | `개강주`(개강일부터 7일) / `시험`(기말고사) / `휴일`(break, Thanksgiving, Easter, Christmas) / `없음`. 겹치면 시험 > 휴일 > 개강주 |
 
 ## 전처리 규칙 (2026-10-13 회의 확정)
 | # | 규칙 | 구현 |
@@ -97,7 +103,7 @@ ev.results_table(res)
 | 8 | **빈칸 채우기(보간, ffill, bfill) 금지** (미래 정보 누출) | 어디에서도 안 함 |
 | 9 | 이상치는 지우지 않고 **z를 ±8로 자름** | `personal_z(clip=8)`, `group_z(clip=8)`, `clip=None`이면 끔 |
 | 10 | 방향 통일: "클수록 나쁨" (걸음↓, 활동↓, 수면↓, 잠든 시각↑, 심박↑) | `bl.bad_score`, `bl.BAD_DIRECTION` |
-| 11 | 기기 교체: 지우지 않고 나눠서 돌릴 수 있게 (⚠️ 날짜 `2018-01-01`은 임시값, 확인 필요) | `load_nethealth(period='all'\|'before'\|'after', cutoff=...)` |
+| 11 | 연구 기간 나누기: 지우지 않고 1~2학년(`before`) / 3~4학년(`after`)으로 나눠 돌릴 수 있게. 경계 `2017-08-13` = Calendar 104주차(3학년 오리엔테이션 주) 시작. 2학년 이후 참여 인원이 크게 줄어(NetHealth Table 1 Attrition Counts) 데이터 성격이 바뀌는 시점임. 기기 교체 날짜는 공식 문서에서 확인되지 않음 | `load_nethealth(period='all'\|'before'\|'after', cutoff=...)`, `pp.split_study_phase` |
 | 12 | 경보 기준 = 오경보 사람당 30일 1회 = **3.3%** (`ALARM_RATE = 1/30`). 모든 사람에게 **같은 기준값 하나** | `ev.ALARM_RATE` |
 | + | 요일 보정(선택): 기준선 창 안의 **과거** 값으로만 요일 평균을 구해서 뺌 | `personal_z(dow_adjust=True)` |
 
@@ -105,9 +111,9 @@ ev.results_table(res)
 | 파일 | 함수 | 하는 일 |
 | --- | --- | --- |
 | `data_loader` | `load_nethealth` | 원본 → 하루 표 (위 규칙 전부 적용) |
-| | `read_raw`, `load_calendar`, `add_term_tag` | 원본 읽기, 학사 달력 읽기·붙이기 |
+| | `read_raw`, `load_calendar`, `add_term_tag` | 원본 읽기, 학사 달력 → 하루 표(study_week, term_tag, event_tag), 하루 표에 붙이기 |
 | `preprocessing` | `hms_to_min`, `drop_duplicate_days`, `build_activity`, `merge_sleep` | 시각 변환, 중복 제거, 착용 필터, 수면 병합 |
-| | `split_device_period`, `filter_min_days`, `add_dow`, `dow_offsets` | 기기 교체 구간, 42일 필터, 요일, 요일 보정값 |
+| | `split_study_phase`, `filter_min_days`, `add_dow`, `dow_offsets` | 연구 기간 나누기, 42일 필터, 요일, 요일 보정값 |
 | `baseline` | `personal_z` | 개인 기준선 z (달력 28일, ±8, 요일 보정 옵션) |
 | | `group_z` | 집단 기준선 z (같은 날 30명 이상) |
 | | `bad_score` | '클수록 나쁨'으로 방향 통일 |
@@ -121,12 +127,12 @@ ev.results_table(res)
 | | `log_result`, `log_table` | `results/results.csv`에 결과 기록 |
 
 ## 평가 방법 (모듈 1, 가짜 이탈 주입)
-- 사람마다 정상 구간(...)을 무작위로 골라 **14일** 동안 지표를 바꿈 (...)
+- 사람마다 정상 구간(직전 28일 기록 14일 이상, 구간 안 기록 7일 이상)을 무작위로 골라 **14일** 동안 지표를 바꿈 (예: 걸음 −30%, 잠든 시각 +120분)
 - 구간 14일 안에 하루라도 울리면 **탐지**. 같은 구간을 주입 없이 한 번 더 돌린 **대조군**에서 울리면 **오경보**
 - 기준값: 대조군 전체에서 하루 오경보율이 3.3%가 되도록 방법마다 **하나**
 - 지표: 탐지율(주), 오경보율, 차이(Youden's J), **탐지 지연일수 중앙값**, PR-AUC(보조)
-- **사람마다** 계산한 뒤 분포로 보고 (...). 정확도·F1·AUROC만 단독으로 쓰지 않음
-- 오경보율은 두 가지: **하루 오경보율**은 기준값 정의상 3.3%, 결과표의 **오경보율**은 14일 구간 안에서 하루라도 울린 비율이라 더 크게 나옴 (탐지율과 같은 단위로 비교하기 위함)   ← 여기 추가
+- **사람마다** 계산한 뒤 분포로 보고 (중앙값 + 박스플롯 + 방법 간 Wilcoxon). 정확도·F1·AUROC만 단독으로 쓰지 않음
+- 오경보율은 두 가지: **하루 오경보율**은 기준값 정의상 3.3%, 결과표의 **오경보율**은 14일 구간 안에서 하루라도 울린 비율이라 더 크게 나옴 (탐지율과 같은 단위로 비교하기 위함)
 
 ## 브랜치 전략
 | 브랜치 | 용도 |

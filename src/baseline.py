@@ -7,7 +7,7 @@ baseline.py — 기준선('평소')과 이탈 점수
     nh['steps_cs']  = bl.cusum(nh.assign(b=nh['steps_bad']), 'b')  # 나빠지는 쪽 누적합
 
 z점수 = (오늘 값 − 기준선 중앙값) / 기준선 MAD×1.4826
-  중앙값·MAD는 평균·표준편차 대신 쓰는 '튀는 값에 덜 흔들리는' 값이에요.
+  중앙값·MAD는 평균·표준편차 대신 쓰는 '튀는 값에 덜 흔들리는' 값임.
 """
 import warnings
 
@@ -36,7 +36,7 @@ def _clip(z, clip):
 
 def _per_person_daily(df, col):
     """
-    사람마다 값을 '하루 한 칸' 달력 배열로 펼쳐요 (기록 없는 날은 빈칸 그대로, 채우지 않음).
+    사람마다 값을 '하루 한 칸' 달력 배열로 펼침 (기록 없는 날은 빈칸 그대로, 채우지 않음).
     돌려주는 것: (사람 ID, 원래 줄 번호들, 원래 날짜들, 달력 Series)
     """
     for pid, g in df.groupby('pid', sort=False):
@@ -50,7 +50,7 @@ def personal_z(df, col, window=WINDOW, gap=0, min_periods=MIN_PERIODS, clip=Z_CL
     """
     개인 기준선 z점수: '나의 평소'와 비교해서 오늘이 얼마나 다른가.
       기준선 = 오늘 기준 (gap+window)일 전 ~ (gap+1)일 전의 **달력** 날짜 (기록 줄 수가 아님)
-               → 오늘과 미래 값은 절대 쓰지 않아요
+               → 오늘과 미래 값은 절대 쓰지 않음
       기록 없는 날은 빈칸으로 두고 계산 (채우지 않음)
 
     인자
@@ -59,7 +59,7 @@ def personal_z(df, col, window=WINDOW, gap=0, min_periods=MIN_PERIODS, clip=Z_CL
       min_periods : 기준선 안에 기록이 이만큼 이상 있어야 계산 (기본 14)
       clip        : z를 ±clip으로 자름 (기본 8, None이면 안 자름)
       dow_adjust  : True면 요일 보정. 기준선 창 안의 과거 값으로 '요일 평균 − 전체 평균'을 구해서
-                    오늘 값과 창 값에서 빼요 (예: 주말마다 걸음이 적은 사람의 주말을 덜 이상하게 봄)
+                    오늘 값과 창 값에서 뺌 (예: 주말마다 걸음이 적은 사람의 주말을 덜 이상하게 봄)
     반환: df와 같은 줄 순서의 Series
     """
     out = pd.Series(np.nan, index=df.index, dtype=float)
@@ -102,7 +102,7 @@ def group_z(df, col, by='date', min_n=GROUP_MIN_N, clip=Z_CLIP):
 
 
 def bad_score(z, col):
-    """z점수를 '클수록 나쁨'으로 방향을 맞춰요. col은 BAD_DIRECTION에 있는 지표 이름."""
+    """z점수를 '클수록 나쁨'으로 방향을 맞춤. col은 BAD_DIRECTION에 있는 지표 이름."""
     return z * BAD_DIRECTION.get(col, 1)
 
 
@@ -114,7 +114,7 @@ def _cusum_prepare(df, col):
 
 
 def _cusum_run(parts, k, h):
-    """사람별 값 배열에 CUSUM을 돌려 하나로 이어 붙인 S 배열을 돌려줘요."""
+    """사람별 값 배열에 CUSUM을 돌려 하나로 이어 붙인 S 배열을 돌려줌."""
     res = []
     for vals in parts:
         s, r = 0.0, np.full(len(vals), np.nan)
@@ -134,10 +134,10 @@ def cusum(df, col, k=0.5, h=None):
     CUSUM(누적합): 하루하루 조금씩 나빠지는 것을 쌓아서 잡아내는 방법.
       S(오늘) = max(0, S(어제) + 오늘 점수 − k)
       col : '클수록 나쁨' 점수 열 (예: bad_score(personal_z(...)))
-      k   : 허용치. 하루 점수가 k보다 작으면 쌓이지 않고 줄어들어요 (기본 0.5)
-      h   : 경보선. S > h 인 날 경보를 울리고 다음 날부터 S를 0에서 다시 쌓아요.
-            None이면 되돌리지 않고 S만 계속 쌓아요 (오래 나쁜 사람은 S가 끝없이 커짐에 주의)
-            모든 사람에게 같은 h를 쓰려면 cusum_threshold로 정하세요.
+      k   : 허용치. 하루 점수가 k보다 작으면 쌓이지 않고 줄어듦 (기본 0.5)
+      h   : 경보선. S > h 인 날 경보를 울리고 다음 날부터 S를 0에서 다시 쌓음.
+            None이면 되돌리지 않고 S만 계속 쌓음 (오래 나쁜 사람은 S가 끝없이 커짐에 주의)
+            모든 사람에게 같은 h를 쓰려면 cusum_threshold로 정함.
     - 사람마다 날짜 순서로 계산. 값이 빈 날은 S를 그대로 두고 그날 출력은 빈칸
     반환: S 값 Series (df와 같은 줄 순서). 경보 = S > h
     """
@@ -147,8 +147,8 @@ def cusum(df, col, k=0.5, h=None):
 
 def cusum_threshold(df, col, k=0.5, rate=1 / 30, iters=30):
     """
-    CUSUM 경보선 h를 정해요: 모든 사람·모든 날을 합쳐서 경보 비율이 rate(기본 3.3%)가 되는 h 하나.
-    (S > h 이면 경보 후 0으로 되돌리는 방식이라, h를 바꿔 가며 반으로 나눠 찾아요)
+    CUSUM 경보선 h를 정함: 모든 사람·모든 날을 합쳐서 경보 비율이 rate(기본 3.3%)가 되는 h 하나.
+    (S > h 이면 경보 후 0으로 되돌리는 방식이라, h를 바꿔 가며 반으로 나눠 찾음)
     """
     _, parts = _cusum_prepare(df, col)
     s0 = _cusum_run(parts, k, None)

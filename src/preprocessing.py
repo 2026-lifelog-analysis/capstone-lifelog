@@ -1,16 +1,16 @@
 """
 preprocessing.py — NetHealth 전처리 규칙 (2026-10-13 회의 확정)
 
-원본 표를 '하루 한 줄' 표로 만들 때 쓰는 작은 함수들. 순서대로 쓰면 load_nethealth와 같은 결과가 나와요.
+원본 표를 '하루 한 줄' 표로 만들 때 쓰는 작은 함수들. 순서대로 쓰면 load_nethealth와 같은 결과가 나옴.
   1. drop_duplicate_days : 같은 사람·같은 날 중복 줄 → 빈칸 가장 적은 줄 하나만
   2. build_activity      : 활동 표 정리 + 착용 80% 미만인 날의 활동·심박은 빈칸
   3. merge_sleep         : 수면 조각 → 하루 총 수면, 잠든 시각
-  4. split_device_period : 기기 교체 전/후로 나누기
+  4. split_study_phase   : 연구 기간(1~2학년 / 3~4학년)으로 나누기
   5. filter_min_days     : 기록 42일 미만인 사람 제외
   6. add_dow             : 요일 열 추가
   + dow_offsets          : 요일 보정용 (baseline.personal_z(dow_adjust=True)가 사용)
 
-빈칸 채우기(보간, ffill, bfill)는 어디에서도 하지 않아요. 미래 정보가 섞이기 때문이에요.
+빈칸 채우기(보간, ffill, bfill)는 어디에서도 하지 않음. 미래 정보가 섞이기 때문임.
 """
 import numpy as np
 import pandas as pd
@@ -18,7 +18,7 @@ import pandas as pd
 WEAR_MIN = 80                 # 착용률(complypercent) 기준. 이보다 낮은 날의 활동·심박은 빈칸
 SLEEP_GAP = 90                # 수면 조각 사이가 이 분 이하면 같은 잠으로 묶음
 MIN_DAYS = 42                 # 기준선 28일 + 평가 14일. 기록이 이보다 적은 사람은 제외
-DEVICE_CUTOFF = '2018-01-01'  # 기기 교체 날짜. ⚠️ 임시값 — 확인 필요
+PHASE_CUTOFF = '2017-08-13'   # 연구 기간 경계 = Calendar 104주차(3학년 오리엔테이션 주) 시작
 
 # 착용률이 낮으면 믿을 수 없는 열 (수면은 착용률과 따로 기록되므로 유지)
 WEAR_COLS = ['steps', 'steps_per_hour', 'active_min', 'meanrate']
@@ -26,10 +26,10 @@ WEAR_COLS = ['steps', 'steps_per_hour', 'active_min', 'meanrate']
 
 def hms_to_min(t, start_hour=12):
     """
-    'HH:MM:SS' 시각을 'start_hour시부터 몇 분 지났는지'로 바꿔요 (0 ~ 1439).
-    잠든 시각은 정오(12시) 기준이라 밤을 넘겨도 숫자가 이어져요.
+    'HH:MM:SS' 시각을 'start_hour시부터 몇 분 지났는지'로 바꿈 (0 ~ 1439).
+    잠든 시각은 정오(12시) 기준이라 밤을 넘겨도 숫자가 이어짐.
       23:30 → 690,  00:00 → 720,  01:00 → 780
-    빈칸이면 빈칸(NaN)을 돌려줘요.
+    빈칸이면 빈칸(NaN)을 돌려줌.
     """
     if pd.isna(t):
         return np.nan
@@ -39,8 +39,8 @@ def hms_to_min(t, start_hour=12):
 
 def drop_duplicate_days(A, keys=('egoid', 'datadate')):
     """
-    같은 사람·같은 날이 여러 줄이면 빈칸이 가장 적은 줄 하나만 남겨요.
-    빈칸 수가 같으면 원본 파일에서 먼저 나온 줄을 남겨요 (실행할 때마다 같은 결과).
+    같은 사람·같은 날이 여러 줄이면 빈칸이 가장 적은 줄 하나만 남김.
+    빈칸 수가 같으면 원본 파일에서 먼저 나온 줄을 남김 (실행할 때마다 같은 결과).
     """
     n_nan = A.isna().sum(axis=1)
     order = n_nan.sort_values(kind='stable').index
@@ -105,13 +105,14 @@ def merge_sleep(S, gap=SLEEP_GAP):
     return d[['pid', 'date', 'sleep_min', 'bed_min', 'wake_min', 'n_episodes']]
 
 
-def split_device_period(d, period='all', cutoff=DEVICE_CUTOFF):
+def split_study_phase(d, period='all', cutoff=PHASE_CUTOFF):
     """
-    기기 교체 전후로 나눠서 분석할 때 써요. 데이터를 지우지는 않고 고르기만 해요.
+    연구 기간(1~2학년 / 3~4학년)을 나눠서 분석할 때 씀. 데이터를 지우지는 않고 고르기만 함.
       period='all'    : 전부 (기본)
-      period='before' : cutoff 날짜 이전만
-      period='after'  : cutoff 날짜부터
-    ⚠️ cutoff 기본값 '2018-01-01'은 임시값이에요. 실제 기기 교체 날짜는 확인 필요.
+      period='before' : cutoff 날짜 이전만 = 1~2학년
+      period='after'  : cutoff 날짜부터 = 3~4학년
+    2017-08-13 = Calendar 104주차(3학년 오리엔테이션 주) 시작. 2학년 이후 참여 인원이 크게 줄어
+    (NetHealth Table 1 Attrition Counts) 데이터 성격이 바뀌는 시점임.
     """
     if period in (None, 'all'):
         return d
@@ -120,13 +121,13 @@ def split_device_period(d, period='all', cutoff=DEVICE_CUTOFF):
         return d[d['date'] < cut]
     if period == 'after':
         return d[d['date'] >= cut]
-    raise ValueError("period는 'all', 'before', 'after' 중 하나여야 해요")
+    raise ValueError("period는 'all', 'before', 'after' 중 하나여야 합니다")
 
 
 def filter_min_days(d, min_days=MIN_DAYS, cols=('steps', 'sleep_min')):
     """
-    '기록 있는 날'(cols 중 하나라도 값이 있는 날)이 min_days일 미만인 사람을 빼요.
-    기본 42일 = 기준선 28일 + 평가 14일. min_days가 None/0이면 아무도 안 빼요.
+    '기록 있는 날'(cols 중 하나라도 값이 있는 날)이 min_days일 미만인 사람을 뺌.
+    기본 42일 = 기준선 28일 + 평가 14일. min_days가 None/0이면 아무도 안 뺌.
     """
     if not min_days:
         return d
@@ -136,7 +137,7 @@ def filter_min_days(d, min_days=MIN_DAYS, cols=('steps', 'sleep_min')):
 
 
 def add_dow(d):
-    """요일 열 dow를 붙여요 (0=월, 1=화, ..., 6=일)."""
+    """요일 열 dow를 붙임 (0=월, 1=화, ..., 6=일)."""
     d = d.copy()
     d['dow'] = d['date'].dt.dayofweek
     return d
@@ -149,8 +150,8 @@ def dow_offsets(win, win_dow):
       win_dow : win과 같은 모양의 요일(0~6) 배열
     반환: (날 수, 7) 배열. [i, k] = 창 i 안에서 '요일 k 평균 − 창 전체 평균'
           창 안에 그 요일 기록이 없으면 0 (보정 안 함)
-    오늘 값과 창 값에서 이 보정값을 빼면 '요일 효과를 뺀 값'이 돼요.
-    (요일 평균을 그대로 빼는 것과 z점수는 같고, 숫자 크기만 원래 단위로 남아요.)
+    오늘 값과 창 값에서 이 보정값을 빼면 '요일 효과를 뺀 값'이 됨.
+    (요일 평균을 그대로 빼는 것과 z점수는 같고, 숫자 크기만 원래 단위로 남음.)
     """
     ok = ~np.isnan(win)
     total = np.where(ok, win, 0.0)
