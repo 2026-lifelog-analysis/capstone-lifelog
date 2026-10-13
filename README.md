@@ -5,8 +5,6 @@
 - 팀: 김민준, 박고은, 조서연, 진승호
 - 지도교수: 장혜령 교수님
 
-> 중간발표(10/23)까지는 **NetHealth 데이터만** 사용해요. 레포에도 NetHealth 코드만 있어요.
-
 ## 프로젝트 개요
 - **모듈 1. 기준선 이탈 탐지**: 개인의 과거 기록으로 "평소"를 만들고, 오늘이 평소에서 얼마나 벗어났는지 계산
 - **모듈 2. 상태 판단**: 그 이탈이 실제 상태 악화와 관련 있는지 확인
@@ -44,7 +42,7 @@ pip install pandas numpy scipy scikit-learn matplotlib ipykernel pytest
 ```
 
 ## 데이터 준비 (NetHealth)
-[NetHealth](https://sites.nd.edu/nethealth/)에서 받은 파일을 아래처럼 넣어 주세요. 파일 이름 앞부분만 맞으면 돼요.
+[NetHealth](https://sites.nd.edu/nethealth/)에서 받은 파일을 아래처럼 넣습니다. 파일 이름 앞부분만 맞으면 됩니다.
 ```
 data/nethealth/
 ├── FitbitActivity(1-30-20).csv   # 하루 활동 (필수)
@@ -52,7 +50,7 @@ data/nethealth/
 └── Calendar.csv                  # 학사 달력 (선택) — 있으면 term_tag 열이 붙음
 ```
 - `Calendar.csv` 형식: `date, term_tag` (하루 한 줄) 또는 `start, end, term_tag` (기간 한 줄). ⚠️ 실제 파일 받은 뒤 형식 확인 필요
-- `data/`는 `.gitignore`에 있어서 커밋되지 않아요. **데이터는 절대 커밋하지 마세요.**
+- `data/`는 `.gitignore`에 있어서 커밋되지 않습니다. **데이터는 절대 커밋하지 않습니다**
 
 ## 사용법
 ```python
