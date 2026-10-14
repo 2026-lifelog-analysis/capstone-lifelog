@@ -10,7 +10,7 @@ E0~E2 (docs/EXPERIMENT_PLAN.md 4장) — 개발용 70% 사람에서만.
   E2-b      요일 7개 보정 (레포 dow_adjust)                S1~S4
   E2-c      평일/주말 2그룹 보정                           S1~S4
 
-사용법: python3 -I experiments/e0_e2.py [반복 수=20] [프로세스 수=6]
+사용법: python3 -I experiments/explore/e0_e2.py [반복 수=20] [프로세스 수=6]
 출력:   results/tuning/e0_e2_table.csv, e0_e2_compare.csv, e0_e2_calendar.csv, runs/*.pkl
 """
 import pickle
@@ -20,6 +20,7 @@ from functools import partial
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import common as C          # noqa: E402
 
 import numpy as np          # noqa: E402

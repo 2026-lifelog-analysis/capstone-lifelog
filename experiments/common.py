@@ -61,6 +61,35 @@ def dev_set(df, seed=0):
     return df[df['pid'].isin(dev)].reset_index(drop=True)
 
 
+def holdout_set(df, seed=0):
+    _, hold = split_pids(load(), seed=seed)
+    return df[df['pid'].isin(hold)].reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
+# 여러 지표 동시 주입: ev.inject_drift를 감싸서 같은 구간에 INJECT_EXTRA의 지표도 넣음
+#   INJECT_EXTRA[:] = [('sleep_min', -0.10, 'relative'), ('bed_min', 60, 'absolute')]
+#   비어 있으면 레포 inject_drift와 완전히 같음
+# ---------------------------------------------------------------------------
+INJECT_EXTRA = []
+_orig_inject = ev.inject_drift
+
+
+def _inject_multi(df, col, effect, mode='relative', length=14, shape='sudden', seed=ev.SEED, **kw):
+    out, seg = _orig_inject(df, col, effect, mode=mode, length=length, shape=shape, seed=seed, **kw)
+    if INJECT_EXTRA and len(seg):
+        rows = ev._segment_rows(out, seg)
+        day = (rows['date'] - rows['start']).dt.days.to_numpy()
+        frac = np.ones(len(rows)) if shape == 'sudden' else (day + 1) / length
+        for c2, e2, m2 in INJECT_EXTRA:
+            v = out.loc[rows.index, c2].to_numpy(float)
+            out.loc[rows.index, c2] = v * (1 + e2 * frac) if m2 == 'relative' else v + e2 * frac
+    return out, seg
+
+
+ev.inject_drift = _inject_multi
+
+
 # ---------------------------------------------------------------------------
 # 변형 개인 기준선
 # ---------------------------------------------------------------------------
@@ -159,6 +188,20 @@ def compare(res_a, res_b, method=CS, metric='차이'):
     p = float(wilcoxon(x['b'], x['a']).pvalue) if (d != 0).any() else np.nan
     return {'사람 수': len(x), '평균 차이': round(float(d.mean()), 4),
             '중앙값 차이': round(float(d.median()), 4),
+            '좋아진 사람': int((d > 0).sum()), '나빠진 사람': int((d < 0).sum()), 'p값': p}
+
+
+def compare_methods(res, method_a, method_b, metric='차이'):
+    """한 평가 안의 두 방법을 같은 사람끼리 짝지어 B − A. Wilcoxon 부호순위."""
+    return _paired(res['per_person'], method_a, method_b, metric)
+
+
+def _paired(pp_, a, b, metric):
+    from scipy.stats import wilcoxon
+    w = pp_.pivot(index='pid', columns='method', values=metric)[[a, b]].dropna()
+    d = w[b] - w[a]
+    p = float(wilcoxon(w[b], w[a]).pvalue) if (d != 0).any() else np.nan
+    return {'사람 수': len(w), '평균 차이': round(float(d.mean()), 4), '중앙값 차이': round(float(d.median()), 4),
             '좋아진 사람': int((d > 0).sum()), '나빠진 사람': int((d < 0).sum()), 'p값': p}
 
 

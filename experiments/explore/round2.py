@@ -20,7 +20,7 @@
   A 또는 B     : 두 CUSUM을 각자 주입 없는 분포에서의 백분위로 바꾼 뒤 큰 쪽 → 경보 예산을 나눠 씀
   집단 기준선  : 걸음, 비교용
 
-사용법: python3 -I experiments/round2.py [반복 수=20] [프로세스 수=10]
+사용법: python3 -I experiments/explore/round2.py [반복 수=20] [프로세스 수=10]
 출력:   results/tuning/round2_table.csv, runs_round2/*.pkl
 """
 import itertools
@@ -32,6 +32,7 @@ from functools import partial
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import common as C          # noqa: E402
 import combo as K           # noqa: E402  (불러오면 여러 지표 주입이 켜짐)
 
