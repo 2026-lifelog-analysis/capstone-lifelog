@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "kind": "append_only_report_extension",
+  "base_commit": "94377776228f63cf4cd009b0a74b28af53808d12",
+  "original_report_bytes": 13405,
+  "original_report_sha256": "6aeb511a7b58901ae49d8c7b6ba5ea4e28873f5d484e961eaecd41104b4a04ee",
+  "appendix_bytes": 17924,
+  "appendix_sha256": "8beeec08bf4631fe69bc016e64f8a1119b8595616d4167310f56dff316ea88ba",
+  "current_report_sha256": "158b38c3e60c63c961c8025671497d08fd57cd259c9cb6bbac0ccf103ab684b5",
+  "evidence_sha256": {
+    "alarm_summary.csv": "bb33508dcc98cec6d855f95ba90506ed0d76ee224e4353f84858476d2450e173",
+    "coverage.csv": "1c121d90ee4e35acfa5f3cfdc6d41089a9a337ba5a87d2025cb231c036891454",
+    "pairwise.csv": "1566598bd490de277ac59adf8df3879dec9d7906d3cb53b34d31aa7912276fd6",
+    "clean_thresholds.json": "7df2a1aaa14870cc970330b6472544b4f1fe6dfcefb848bd4621de07a5f87884"
+  }
+}

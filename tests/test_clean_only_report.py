@@ -1,6 +1,7 @@
 """Publication must use verified clean results, never synthetic placeholders."""
 import json
 import ast
+import hashlib
 from itertools import combinations
 from pathlib import Path
 
@@ -147,3 +148,99 @@ def test_notebook_final_completion_gate(tmp_path):
     artifact.write_text('{"changed": true}')
     with pytest.raises(ValueError, match='산출물'):
         verify(view, 'report-hash')
+
+
+@pytest.fixture
+def report_extension(tmp_path):
+    """Execute the notebook's real verifier without running its display cells."""
+    path = Path(__file__).parents[1] / 'notebooks/03_서연_튜닝비교.ipynb'
+    notebook = json.loads(path.read_text())
+    cell = next(cell for cell in notebook['cells'] if cell['id'] == 'comparison-config')
+    tree = ast.parse(''.join(cell['source']))
+    function = next(node for node in tree.body
+                    if isinstance(node, ast.FunctionDef) and node.name == 'verify_report_extension')
+    namespace = {'json': json, 'sha256': io.sha256}
+    exec(compile(ast.Module(body=[function], type_ignores=[]), str(path), 'exec'), namespace)
+    original = '원래 보고서\n'.encode()
+    appendix = '\n## 추가 해석\n실제 추론을 추가 실행한 것이 아닙니다.\n'.encode()
+    report = tmp_path / 'COMPARISON.md'
+    report.write_bytes(original + appendix)
+    run = tmp_path / 'run_view'
+    run.mkdir()
+    names = ['alarm_summary.csv', 'coverage.csv', 'pairwise.csv', 'clean_thresholds.json']
+    for name in names:
+        (run / name).write_text('aggregate evidence')
+    record = dict(version=1, kind='append_only_report_extension',
+                  base_commit='94377776228f63cf4cd009b0a74b28af53808d12',
+                  original_report_bytes=len(original),
+                  original_report_sha256=hashlib.sha256(original).hexdigest(),
+                  appendix_bytes=len(appendix), appendix_sha256=hashlib.sha256(appendix).hexdigest(),
+                  current_report_sha256=io.sha256(report),
+                  evidence_sha256={name: io.sha256(run / name) for name in names})
+    sidecar = report.with_suffix('.appendix.json')
+    sidecar.write_text(json.dumps(record))
+    return namespace['verify_report_extension'], report, run, original, record, sidecar
+
+
+def test_notebook_accepts_original_report_without_extension_record(report_extension):
+    verify, report, run, original, record, sidecar = report_extension
+    report.write_bytes(original)
+    sidecar.unlink()
+    assert verify(report, record['original_report_sha256'], run) is None
+
+
+def test_notebook_accepts_verified_append_only_report(report_extension):
+    verify, report, run, _, record, _ = report_extension
+    assert verify(report, record['original_report_sha256'], run) == record
+
+
+def test_notebook_rejects_changed_report_without_extension_record(report_extension):
+    verify, report, run, _, record, sidecar = report_extension
+    sidecar.unlink()
+    with pytest.raises(ValueError, match='추가 기록'):
+        verify(report, record['original_report_sha256'], run)
+
+
+@pytest.mark.parametrize('part', ['prefix', 'suffix'])
+def test_notebook_rejects_tampering_despite_updated_full_hash(report_extension, part):
+    verify, report, run, original, record, sidecar = report_extension
+    content = report.read_bytes()
+    offset = 0 if part == 'prefix' else len(original)
+    report.write_bytes(content[:offset] + b'X' + content[offset + 1:])
+    sidecar.write_text(json.dumps({**record, 'current_report_sha256': io.sha256(report)}))
+    with pytest.raises(ValueError, match='원문|추가문'):
+        verify(report, record['original_report_sha256'], run)
+
+
+@pytest.mark.parametrize('field,value', [
+    ('version', True), ('version', 2), ('kind', 'rewrite'), ('base_commit', 'wrong'),
+    ('original_report_bytes', True), ('original_report_bytes', 1.5),
+    ('original_report_bytes', '20'), ('original_report_bytes', 0),
+    ('original_report_bytes', -1), ('original_report_bytes', 99999),
+    ('appendix_bytes', False), ('appendix_bytes', 0), ('appendix_bytes', -1),
+    ('appendix_bytes', '1'), ('appendix_bytes', 1.5), ('appendix_bytes', 99999),
+    ('original_report_sha256', 'f' * 64), ('appendix_sha256', 10),
+    ('appendix_sha256', 'not-a-digest'), ('current_report_sha256', 'f' * 64),
+    ('evidence_sha256', {}), ('evidence_sha256', []),
+    ('evidence_sha256', {'../private.csv': 'f' * 64}),
+])
+def test_notebook_rejects_invalid_extension_record(report_extension, field, value):
+    verify, report, run, _, record, sidecar = report_extension
+    sidecar.write_text(json.dumps({**record, field: value}))
+    with pytest.raises(ValueError):
+        verify(report, record['original_report_sha256'], run)
+
+
+@pytest.mark.parametrize('invalid', [[], None, 'invalid', {}])
+def test_notebook_rejects_non_record_extension(report_extension, invalid):
+    verify, report, run, _, record, sidecar = report_extension
+    sidecar.write_text(json.dumps(invalid))
+    with pytest.raises(ValueError):
+        verify(report, record['original_report_sha256'], run)
+
+
+def test_notebook_rejects_changed_extension_evidence(report_extension):
+    verify, report, run, _, record, _ = report_extension
+    (run / 'pairwise.csv').write_text('changed evidence')
+    with pytest.raises(ValueError, match='근거'):
+        verify(report, record['original_report_sha256'], run)
