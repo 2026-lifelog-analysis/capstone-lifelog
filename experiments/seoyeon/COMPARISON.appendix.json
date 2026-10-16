@@ -4,9 +4,9 @@
   "base_commit": "94377776228f63cf4cd009b0a74b28af53808d12",
   "original_report_bytes": 13405,
   "original_report_sha256": "6aeb511a7b58901ae49d8c7b6ba5ea4e28873f5d484e961eaecd41104b4a04ee",
-  "appendix_bytes": 17924,
-  "appendix_sha256": "8beeec08bf4631fe69bc016e64f8a1119b8595616d4167310f56dff316ea88ba",
-  "current_report_sha256": "158b38c3e60c63c961c8025671497d08fd57cd259c9cb6bbac0ccf103ab684b5",
+  "appendix_bytes": 34163,
+  "appendix_sha256": "05f069d6a0d3b298225aec18867a960d0a13c6e2772942d66d987a466f32de31",
+  "current_report_sha256": "c838daa35e997be91b13ad7361d407825fc5775b944e8b3ef1f9aa219e7e9121",
   "evidence_sha256": {
     "alarm_summary.csv": "bb33508dcc98cec6d855f95ba90506ed0d76ee224e4353f84858476d2450e173",
     "coverage.csv": "1c121d90ee4e35acfa5f3cfdc6d41089a9a337ba5a87d2025cb231c036891454",
