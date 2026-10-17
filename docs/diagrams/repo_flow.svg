@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" role="img" aria-labelledby="repo_flow-title repo_flow-desc"><title id="repo_flow-title">자료가 경보가 되기까지 일곱 단계</title><desc id="repo_flow-desc">NetHealth 원본 자료가 전처리로 사람·하루 단위 표가 되고, 지표에 방법을 적용해 하루 점수가 나오고, 평가에서 가짜 변화를 심어 채점하고 노트북·테스트로 확인하는 일곱 단계와 각 단계의 코드 위치를 보여 준다.</desc><defs><style>@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&amp;family=Noto+Sans+KR:wght@400;500;600&amp;display=swap');</style><marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker></defs><rect width="100%" height="100%" fill="#f5f5f5"/><text x="36" y="64" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="28" font-weight="600" fill="#2d3142" text-anchor="start">자료가 경보가 되기까지 일곱 단계</text>
+<line x1="188" y1="210" x2="211" y2="210" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="364" y1="210" x2="387" y2="210" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="540" y1="210" x2="563" y2="210" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="716" y1="210" x2="739" y2="210" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="892" y1="210" x2="915" y2="210" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="1068" y1="210" x2="1091" y2="210" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<g data-node="stage-1">
+<rect x="36" y="112" width="152" height="196" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="36" y="112" width="152" height="196" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="48" y="142" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="14" font-weight="600" fill="#2d3142" text-anchor="start">① 자료</text>
+<text x="48" y="168" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">NetHealth 원본 CSV</text>
+<text x="48" y="186" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">활동·수면 조각</text>
+<text x="48" y="204" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">학사 달력</text>
+<line x1="48" y1="256" x2="176" y2="256" stroke="#2d3142" stroke-opacity="0.12" stroke-width="0.8"/>
+<text x="48" y="276" font-family="'Geist Mono',monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="start">data/nethealth/</text>
+</g>
+<g data-node="stage-2">
+<rect x="212" y="112" width="152" height="196" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="212" y="112" width="152" height="196" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="224" y="142" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="14" font-weight="600" fill="#2d3142" text-anchor="start">② 전처리</text>
+<text x="224" y="168" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">사람 한 명·하루</text>
+<text x="224" y="186" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">한 줄 표</text>
+<text x="224" y="204" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">착용 80%</text>
+<text x="224" y="222" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">수면 병합 90분</text>
+<text x="224" y="240" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">42일, 보간 금지</text>
+<line x1="224" y1="256" x2="352" y2="256" stroke="#2d3142" stroke-opacity="0.12" stroke-width="0.8"/>
+<text x="224" y="276" font-family="'Geist Mono',monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="start">src/preprocessing.py</text>
+<text x="224" y="290" font-family="'Geist Mono',monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="start">src/data_loader.py</text>
+</g>
+<g data-node="stage-3">
+<rect x="388" y="112" width="152" height="196" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="388" y="112" width="152" height="196" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="400" y="142" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="14" font-weight="600" fill="#2d3142" text-anchor="start">③ 지표</text>
+<text x="400" y="168" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">점수로 바꿀 값</text>
+<text x="400" y="186" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">걸음, 잠든 시각,</text>
+<text x="400" y="204" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">총 수면 …</text>
+<line x1="400" y1="256" x2="528" y2="256" stroke="#2d3142" stroke-opacity="0.12" stroke-width="0.8"/>
+<text x="400" y="278" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#7a8399" text-anchor="start">하루 표의 열</text>
+</g>
+<g data-node="stage-4">
+<rect x="564" y="112" width="152" height="196" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="564" y="112" width="152" height="196" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="576" y="142" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="14" font-weight="600" fill="#2d3142" text-anchor="start">④ 방법</text>
+<text x="576" y="168" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">“오늘이 얼마나</text>
+<text x="576" y="186" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">이상한가” 점수</text>
+<text x="576" y="204" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">개인 z(28일)</text>
+<text x="576" y="222" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">집단 z, CUSUM</text>
+<line x1="576" y1="256" x2="704" y2="256" stroke="#2d3142" stroke-opacity="0.12" stroke-width="0.8"/>
+<text x="576" y="276" font-family="'Geist Mono',monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="start">src/baseline.py</text>
+</g>
+<g data-node="stage-5">
+<rect x="740" y="112" width="152" height="196" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="740" y="112" width="152" height="196" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="752" y="142" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="14" font-weight="600" fill="#2d3142" text-anchor="start">⑤ 점수</text>
+<text x="752" y="168" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">지표에 방법을 적용한</text>
+<text x="752" y="186" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">하루 점수</text>
+<line x1="752" y1="256" x2="880" y2="256" stroke="#2d3142" stroke-opacity="0.12" stroke-width="0.8"/>
+<text x="752" y="276" font-family="'Geist Mono',monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="start">src/evaluation.py</text>
+</g>
+<g data-node="stage-6">
+<rect x="916" y="112" width="152" height="196" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="916" y="112" width="152" height="196" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="928" y="142" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="14" font-weight="600" fill="#2d3142" text-anchor="start">⑥ 평가</text>
+<text x="928" y="168" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">가짜 변화 심고 채점</text>
+<text x="928" y="186" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">14일 구간</text>
+<text x="928" y="204" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">1/30 기준값</text>
+<line x1="928" y1="256" x2="1056" y2="256" stroke="#2d3142" stroke-opacity="0.12" stroke-width="0.8"/>
+<text x="928" y="276" font-family="'Geist Mono',monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="start">src/evaluation.py</text>
+</g>
+<g data-node="stage-7">
+<rect x="1092" y="112" width="152" height="196" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="1092" y="112" width="152" height="196" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="1104" y="142" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="14" font-weight="600" fill="#2d3142" text-anchor="start">⑦ 노트북·테스트</text>
+<text x="1104" y="168" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">01 전처리</text>
+<text x="1104" y="186" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">02 비교·주입</text>
+<text x="1104" y="204" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">03 학사 일정</text>
+<line x1="1104" y1="256" x2="1232" y2="256" stroke="#2d3142" stroke-opacity="0.12" stroke-width="0.8"/>
+<text x="1104" y="276" font-family="'Geist Mono',monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="start">notebooks/</text>
+<text x="1104" y="290" font-family="'Geist Mono',monospace" font-size="9" font-weight="400" fill="#4f5d75" text-anchor="start">tests/</text>
+</g></svg>
