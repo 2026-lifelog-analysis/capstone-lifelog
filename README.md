@@ -9,6 +9,9 @@
 - **모듈 1. 기준선 이탈 탐지**: 개인의 과거 기록으로 "평소"를 만들고, 오늘이 평소에서 얼마나 벗어났는지 계산
 - **모듈 2. 상태 판단**: 그 이탈이 실제 상태 악화와 관련 있는지 확인
 
+## 코드 흐름 문서
+- [docs/repo_structure.md](docs/repo_structure.md): 자료가 경보가 되기까지의 일곱 단계와 각 단계의 코드 위치, PR별로 추가된 지표·점수, 같은 조건에서 다시 측정한 결과 정리. 저장소를 처음 보는 사람은 이 문서부터 읽으면 됩니다.
+
 ## 기술 스택
 | 구분 | 사용 |
 | --- | --- |
@@ -29,6 +32,8 @@ capstone-lifelog/
 ├── notebooks/
 │   ├── 01_preprocessing.ipynb        # 전처리 과정과 하루 표 확인
 │   └── 02_baseline_nethealth.ipynb   # 개인 vs 집단 기준선 비교 + 주입 평가
+├── experiments/            # PR별 실험 코드 (common.py, minjun/, integrated/)
+├── docs/                   # 코드 흐름 문서 repo_structure.md, 그림
 ├── tests/                  # pytest
 ├── data/                   # 데이터 (깃허브에 안 올림)
 └── results/                # 실험 결과 기록 results.csv (깃허브에 안 올림)
