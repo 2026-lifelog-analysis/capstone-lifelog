@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 540" role="img" aria-labelledby="repo_score_example-title repo_score_example-desc"><title id="repo_score_example-title">하루 기록 하나가 점수가 되기까지 (학생 A 예시)</title><desc id="repo_score_example-desc">학생 A의 어느 하루 걸음 4,200이 개인 z, 집단 z, 개인+CUSUM 세 방법에서 각각 +3.2, +2.9, 3.7이라는 점수가 되고, 방법마다 평가 단계에서 정한 기준값을 넘으면 그날 경보가 된다는 것을 설명용 숫자로 보여 준다.</desc><defs><style>@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&amp;family=Noto+Sans+KR:wght@400;500;600&amp;display=swap');</style><marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker></defs><rect width="100%" height="100%" fill="#f5f5f5"/><text x="40" y="64" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="28" font-weight="600" fill="#2d3142" text-anchor="start">하루 기록 하나가 점수가 되기까지 (학생 A 예시)</text>
+<text x="40" y="108" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="500" fill="#4f5d75" text-anchor="start">하루 표 한 줄</text>
+<text x="384" y="108" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="500" fill="#4f5d75" text-anchor="start">방법</text>
+<text x="768" y="108" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="500" fill="#4f5d75" text-anchor="start">점수</text>
+<text x="928" y="108" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="500" fill="#4f5d75" text-anchor="middle">기준값</text>
+<line x1="320" y1="180" x2="383" y2="180" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="704" y1="180" x2="767" y2="180" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="320" y1="300" x2="383" y2="300" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="704" y1="300" x2="767" y2="300" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="320" y1="420" x2="383" y2="420" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="704" y1="420" x2="767" y2="420" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="928" y1="128" x2="928" y2="472" stroke="#2d3142" stroke-width="1.2" stroke-dasharray="5,4"/>
+<text x="948" y="306" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="16" font-weight="600" fill="#2d3142" text-anchor="start">넘으면 그날 경보</text>
+<g data-node="day-row">
+<rect x="40" y="128" width="280" height="344" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="40" y="128" width="280" height="344" rx="6" fill="#4f5d75" fill-opacity="0.10" stroke="#7a8399" stroke-width="1"/>
+<text x="56" y="158" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="500" fill="#4f5d75" text-anchor="start">학생 A · 어느 하루</text>
+<text x="56" y="204" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="28" font-weight="600" fill="#2d3142" text-anchor="start">걸음 4,200</text>
+<line x1="56" y1="232" x2="304" y2="232" stroke="#2d3142" stroke-opacity="0.12" stroke-width="0.8"/>
+<text x="56" y="268" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="600" fill="#2d3142" text-anchor="start">직전 28일:</text>
+<text x="56" y="288" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">중앙값 9,000, MAD 1,500</text>
+<text x="56" y="324" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="600" fill="#2d3142" text-anchor="start">같은 날 다른 학생</text>
+<text x="56" y="344" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">중앙값 8,500</text>
+</g>
+<g data-node="method-1">
+<rect x="384" y="128" width="320" height="104" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="384" y="128" width="320" height="104" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="400" y="156" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="14" font-weight="600" fill="#2d3142" text-anchor="start">개인 z</text>
+<text x="400" y="178" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#2d3142" text-anchor="start">내 지난 28일 대비 몇 단위 다른가</text>
+<text x="400" y="200" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">(4,200 - 9,000) ÷ 1,500 ≈ -3.2</text>
+<text x="400" y="218" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">걸음은 줄수록 나쁨이라 +3.2</text>
+</g>
+<g data-node="score-1">
+<rect x="768" y="152" width="112" height="56" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="768" y="152" width="112" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="824" y="189" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="24" font-weight="600" fill="#2d3142" text-anchor="middle">+3.2</text>
+</g>
+<g data-node="method-2">
+<rect x="384" y="248" width="320" height="104" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="384" y="248" width="320" height="104" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="400" y="276" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="14" font-weight="600" fill="#2d3142" text-anchor="start">집단 z</text>
+<text x="400" y="298" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#2d3142" text-anchor="start">같은 날 다른 학생들 대비</text>
+<text x="400" y="320" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">휴일이라 모두 4,000을 걸었다면 0 근처</text>
+</g>
+<g data-node="score-2">
+<rect x="768" y="272" width="112" height="56" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="768" y="272" width="112" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="824" y="309" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="24" font-weight="600" fill="#2d3142" text-anchor="middle">+2.9</text>
+</g>
+<g data-node="method-3">
+<rect x="384" y="368" width="320" height="104" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="384" y="368" width="320" height="104" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="400" y="396" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="14" font-weight="600" fill="#2d3142" text-anchor="start">개인+CUSUM</text>
+<text x="400" y="418" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#2d3142" text-anchor="start">개인 z를 날마다 누적</text>
+<text x="400" y="440" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">어제까지 1.0 + 3.2 - 0.5(허용치) = 3.7</text>
+</g>
+<g data-node="score-3">
+<rect x="768" y="392" width="112" height="56" rx="6" fill="#f5f5f5" stroke="none" stroke-width="1"/><rect x="768" y="392" width="112" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+<text x="824" y="429" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="24" font-weight="600" fill="#2d3142" text-anchor="middle">3.7</text>
+</g>
+<text x="40" y="512" font-family="'Malgun Gothic','Noto Sans KR',sans-serif" font-size="12" font-weight="400" fill="#4f5d75" text-anchor="start">기준값은 ⑥ 평가에서 하루 경보율 1/30이 되도록 방법마다 하나씩 정한다</text></svg>
