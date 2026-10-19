@@ -17,7 +17,7 @@ def baseline_example(p):
     up = [m + s if m is not None and s is not None else None for m, s in zip(d['steps_med'], d['steps_sd'])]
     lo = [m - s if m is not None and s is not None else None for m, s in zip(d['steps_med'], d['steps_sd'])]
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06, row_heights=[0.45, 0.25, 0.30],
-                        subplot_titles=['① 걸음 수와 개인 기준선 (직전 28일 중앙값 ± 흔들림 폭) · −28~−1일은 화면 앞 기준선 기간',
+                        subplot_titles=['① 걸음 수와 개인 기준선 (직전 28일 중앙값 ± 흔들림 폭) · 0일 왼쪽 28일은 기준선을 쌓는 기간',
                                         '② 이탈 점수 (요일·같은 날 공통효과를 뺀 뒤, 클수록 평소보다 적게 걸음)',
                                         '③ 누적합 (CUSUM) — 경보선을 넘으면 경보'])
     fig.add_trace(go.Scatter(x=x, y=up, line=dict(width=0), hoverinfo='skip', showlegend=False), 1, 1)

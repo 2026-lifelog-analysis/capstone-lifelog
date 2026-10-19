@@ -13,7 +13,6 @@
 
 절을 추가하려면: figures_*.py에 그림 함수를 만들고 아래 research_sections() / monitor_sections()에 한 줄 넣는다.
 """
-import datetime as dt
 import html
 import json
 import sys
@@ -27,7 +26,6 @@ import demo_app as DA                   # noqa: E402
 import figures_research as FR           # noqa: E402
 import results_data as RD               # noqa: E402
 
-VERSION = RD.CHANGELOG[-1][0]
 STATUS = {'done': ('완료', 'st-done'), 'doing': ('진행 중', 'st-doing'), 'final': ('기말 예정', 'st-final')}
 
 
@@ -59,7 +57,7 @@ def research_sections(p):
         ('목표', '웨어러블 걸음·수면 기록에서 <b>그 사람의 평소와 달라지는 변화</b>를 일찍 알아차린다'),
         ('정의: 일상생활 이탈', '개인 평소(직전 28일) 대비 활동·수면 패턴의 지속적 변화. 건강 악화 진단이 아님'),
         ('관찰 축', '걸음 수 감소 · 수면 시간 감소 · 취침 시각 지연 · 수면 규칙성 저하'),
-        ('범위 선정 기준', '① 본인이 알아차리기 어려운가 ② 수일~수주 안에 신호가 변하는가 ③ 변화가 악화에 앞선다는 개인 내 근거가 있는가'),
+        ('범위 선정 기준', '① 본인이 알아차리기 어려운가<br>② 수일~수주 안에 신호가 변하는가<br>③ 변화가 악화에 앞선다는 개인 내 근거가 있는가'),
     ]) + '<div class="flow"><div class="step done">모듈 1<br><small>기준선 이탈 탐지 · NetHealth 579명</small></div>'
          '<div class="arrow">→</div><div class="step doing">모듈 2<br><small>설문·의학 기준으로 상태와의 관련 검증</small></div>'
          '<div class="arrow">→</div><div class="step final">대시보드<br><small>보호자·관리자용 화면</small></div></div>'))
@@ -138,15 +136,15 @@ def monitor_tab(p):
 def standalone_demo(p):
     css, body, js, _ = DA.render(p)
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f2f2f7">
-<title>오늘의 생활 리듬</title><style>body{{margin:0;background:#f2f2f7}}{css}
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f6f4f0">
+<title>오늘의 생활 리듬</title><style>body{{margin:0;background:#f6f4f0}}{css}
 @media (min-width:600px){{.app{{max-width:430px;margin:24px auto;border-radius:36px;box-shadow:0 10px 40px rgba(0,0,0,.15);min-height:880px}}}}
 </style></head><body>{body}<script>{js}</script></body></html>"""
 
 
 CSS = """
 :root{--bg:#f8fafc;--panel:#fff;--ink:#0f172a;--muted:#475569;--line:#e2e8f0;--blue:#2563eb;--navy:#1e3a8a;--orange:#ea580c;--purple:#7c3aed}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;font-size:16px;line-height:1.6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;font-size:16px;line-height:1.6;word-break:keep-all;overflow-wrap:break-word}
 header{background:var(--navy);color:#fff;padding:20px 32px}header h1{margin:0;font-size:24px}header .meta{opacity:.8;font-size:14px}
 nav{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);padding:0 32px;display:flex;gap:4px}
 nav button{border:0;background:none;padding:14px 20px;font-size:17px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;font-family:inherit}
@@ -167,14 +165,14 @@ section{background:var(--panel);border:1px solid var(--line);border-radius:12px;
 .vsplit{display:flex;gap:10px}.vsplit .vbox{flex:1;font-weight:400}
 .placeholder{border:2px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:#94a3b8;margin-top:12px}
 .demo-wrap{display:flex;gap:40px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
-.phone{width:400px;height:820px;border-radius:48px;border:12px solid #1c1c1e;overflow-y:auto;position:relative;background:#f2f2f7;box-shadow:0 20px 50px rgba(15,23,42,.25)}
-.phone::-webkit-scrollbar{width:0}.notch{position:sticky;top:0;height:26px;background:#f2f2f7;z-index:2}
+.phone{width:400px;height:820px;border-radius:48px;border:12px solid #1c1c1e;overflow-y:auto;position:relative;background:#f6f4f0;box-shadow:0 20px 50px rgba(15,23,42,.25)}
+.phone::-webkit-scrollbar{width:0}.notch{position:sticky;top:0;height:26px;background:#f6f4f0;z-index:2}
 .notch::after{content:"";position:absolute;left:50%;top:6px;transform:translateX(-50%);width:110px;height:22px;border-radius:12px;background:#1c1c1e}
 .presenter{max-width:460px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 24px}
 .presenter ul{padding-left:18px}.presenter li{margin:6px 0}.scenes{display:flex;flex-direction:column;gap:8px;margin:12px 0 18px}
 .scene-btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;text-align:left;font-size:15px;cursor:pointer;font-family:inherit}
 .scene-btn.on{border-color:var(--navy);background:#eef2ff;font-weight:700}
-footer{color:var(--muted);font-size:14px;max-width:1280px;margin:0 auto;padding:0 32px 40px}
+footer{color:#94a3b8;font-size:12px;text-align:right;max-width:1280px;margin:0 auto;padding:0 32px 40px}
 @media (max-width:900px){.grid2{grid-template-columns:1fr}.flow{flex-direction:column}}
 """
 
@@ -190,19 +188,17 @@ def main():
     if mode not in ('발표용', '공유용'):
         raise SystemExit('모드는 발표용 또는 공유용')
     p = json.loads(Path(person).read_text()) if mode == '발표용' else None
-    today = dt.date.today().isoformat()
     research = ''.join(research_sections(p))
     monitor, demo_css, demo_js = monitor_tab(p)
-    log = ''.join(f'<li>{v} ({d}) {t}</li>' for v, d, t in RD.CHANGELOG)
     page = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>일상생활 이탈 탐지</title>
 <style>{CSS}{demo_css}</style><script>{plotly.offline.get_plotlyjs()}</script></head><body>
 <header><h1>라이프로그 기반 개인별 일상생활 이탈 탐지</h1>
-<div class="meta">동국대 컴퓨터·AI학부 종합설계 · {VERSION} · {today} 생성 · {mode}</div></header>
+</header>
 <nav><button data-t="tab-r" class="on" onclick="showTab('tab-r')">연구</button>
 <button data-t="tab-m" onclick="showTab('tab-m')">모니터링 데모</button></nav>
 <main><div id="tab-r" class="tab on">{research}</div><div id="tab-m" class="tab">{monitor}</div></main>
-<footer><b>변경 이력</b><ul>{log}</ul></footer>
+<footer>동국대 컴퓨터·AI학부 종합설계 · {RD.VERSION} · {mode}</footer>
 <script>{JS}</script><script>{demo_js}</script></body></html>"""
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(page, encoding='utf-8')
