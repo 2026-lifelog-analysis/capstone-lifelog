@@ -12,12 +12,36 @@
 ## 코드 흐름 문서
 - [docs/repo_structure.md](docs/repo_structure.md): 자료가 경보가 되기까지의 일곱 단계와 각 단계의 코드 위치, PR별로 추가된 지표·점수, 같은 조건에서 다시 측정한 결과 정리. 저장소를 처음 보는 사람은 이 문서부터 읽으면 됩니다.
 
+## 대시보드
+연구 결과와, 일반 사용자(본인·가족)가 휴대폰으로 보는 모니터링 화면 데모를 HTML 한 장에 담았습니다. 탭은 **연구**와 **모니터링 데모** 두 개입니다.
+
+| 연구 탭 | 모니터링 데모 (PC 발표 화면) | 모니터링 데모 (휴대폰, 카드 상세) |
+| --- | --- | --- |
+| ![연구 탭](docs/images/dashboard_research.png) | ![모니터링 데모](docs/images/dashboard_demo.png) | ![휴대폰 상세](docs/images/dashboard_mobile_detail.png) |
+
+- **미리보기 바로 보기:** [`dashboard/preview/dashboard.html`](dashboard/preview/dashboard.html), 휴대폰용 [`dashboard_모바일데모.html`](dashboard/preview/dashboard_모바일데모.html). 내려받아 브라우저로 열면 됩니다 (GitHub 화면에서는 소스로만 보임)
+- 미리보기의 연구 결과 숫자는 실제 값이고, 사람 한 명의 기록은 **가상 예시 데이터**(`dashboard/sample_person.py`)입니다. NetHealth 참가자의 개인 기록은 공개 저장소에 올리지 않습니다
+- 디자인·문구는 모두 코드에 있어서 누가 빌드해도 같은 화면이 나옵니다. 설계 원칙은 `dashboard/demo_app.py` 맨 위 설명 참고
+
+```bash
+pip install -r dashboard/requirements.txt                     # plotly (대시보드 전용)
+
+# 미리보기 (데이터 없이 가능)
+python3 -I dashboard/sample_person.py dashboard/preview/sample_person.json
+python3 -I dashboard/build.py 미리보기 dashboard/preview/sample_person.json dashboard/preview/dashboard.html
+
+# 발표용 (NetHealth 실제 참가자, 결과물은 커밋하지 않음)
+python3 -I dashboard/export_person.py <저장할 json>
+python3 -I dashboard/build.py 발표용 <json> <출력.html>
+```
+- 집계 숫자는 `dashboard/results_data.py` 한 곳에 출처와 함께 적혀 있습니다. 결과가 바뀌면 이 파일만 고치고 다시 빌드합니다
+
 ## 기술 스택
 | 구분 | 사용 |
 | --- | --- |
 | 언어 | Python 3.12 |
 | 분석 | pandas, numpy, scipy, scikit-learn |
-| 시각화 | matplotlib |
+| 시각화 | matplotlib, plotly (대시보드 전용) |
 | 테스트 | pytest |
 | 개발 환경 | VS Code + Jupyter Notebook |
 
@@ -33,6 +57,7 @@ capstone-lifelog/
 │   ├── 01_preprocessing.ipynb        # 전처리 과정과 하루 표 확인
 │   └── 02_baseline_nethealth.ipynb   # 개인 vs 집단 기준선 비교 + 주입 평가
 ├── experiments/            # PR별 실험 코드 (common.py, minjun/, integrated/)
+├── dashboard/              # 결과 대시보드 (HTML 한 장 생성). preview/ = 가상 예시 데이터로 만든 미리보기
 ├── docs/                   # 코드 흐름 문서 repo_structure.md, 그림
 ├── tests/                  # pytest
 ├── data/                   # 데이터 (깃허브에 안 올림)

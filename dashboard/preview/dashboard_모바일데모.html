@@ -1,0 +1,169 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f6f4f0">
+<title>오늘의 생활 리듬</title><style>body{margin:0;background:#f6f4f0}
+.app{--bg:#f6f4f0;--card:#fff;--ink:#23211d;--sub:#78726a;--line:#ebe6de;
+--steps:#2f9e6e;--sleep:#6b62c8;--bed:#3a7bd5;--reg:#1d97a6;
+--warn:#d98a1c;--warnbg:#fdf3e2;--calm:#2f9e6e;--calmbg:#e8f5ee;--watch:#8a847b;
+font-family:"Pretendard","Apple SD Gothic Neo",-apple-system,BlinkMacSystemFont,"Malgun Gothic","Noto Sans KR",sans-serif;
+background:var(--bg);color:var(--ink);font-size:17px;line-height:1.5;-webkit-font-smoothing:antialiased;
+word-break:keep-all;overflow-wrap:break-word}
+.app.big{font-size:20px}
+.app *{box-sizing:border-box}.app b{font-weight:800}
+.app h3,.app .t,.app .v{text-wrap:balance}.app p,.app .u{text-wrap:pretty}
+.scr{display:none;padding:14px 18px 30px}.scr.on{display:block}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:6px 2px 14px}.top>div{flex:1;min-width:0}
+.top .s{color:var(--sub);font-size:.85em;font-weight:600}.top .t{font-size:1.6em;font-weight:800;letter-spacing:-.03em;line-height:1.25}
+.pill{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:8px 12px;font-size:.82em;font-weight:700;
+min-height:44px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.pill[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.hero{position:relative;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 18px 18px 22px;margin:4px 0 12px;
+display:flex;gap:14px;align-items:flex-start;overflow:hidden}
+.hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px}
+.hero.attention::before{background:var(--warn)}.hero.calm::before{background:var(--calm)}.hero.watch::before{background:var(--watch)}
+.hero .ic{flex:none;width:44px;height:44px;border-radius:14px;display:grid;place-items:center}
+.hero.attention .ic{background:var(--warnbg);color:var(--warn)}.hero.calm .ic{background:var(--calmbg);color:var(--calm)}.hero.watch .ic{background:#f1efea;color:var(--watch)}
+.hero .ic svg{width:24px;height:24px}
+.hero h3{margin:0 0 6px;font-size:1.2em;line-height:1.35;letter-spacing:-.02em}.hero p{margin:0;color:#4a463f;font-size:.93em}
+.note{border:1px dashed #d9d2c6;border-radius:14px;padding:11px 14px;color:var(--sub);font-size:.86em;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 14px 10px;text-align:left;cursor:pointer;font-family:inherit;
+color:inherit;min-height:44px;font-size:1em;display:flex;flex-direction:column}
+.tile:active{transform:scale(.98)}
+.mi{display:flex;align-items:center;gap:8px;font-size:.84em;font-weight:700}
+.mi .sq{width:26px;height:26px;border-radius:8px;display:grid;place-items:center}.mi .sq svg{width:16px;height:16px}
+.tile .v{font-size:1.4em;font-weight:800;margin-top:10px;letter-spacing:-.03em;line-height:1.2}
+.tile .u{font-size:.8em;color:var(--sub);margin-top:2px}
+.chip{align-self:flex-start;display:inline-block;margin-top:8px;border-radius:8px;padding:2px 8px;font-size:.76em;font-weight:700;border:1px solid;white-space:nowrap}
+.chip.ok{border-color:#ddd7cd;color:#5f5a52}.chip.low{border-color:#f0c88c;color:#a8600a;background:var(--warnbg)}
+.chip.mid{border-color:#eedcaa;color:#8a6a10}.chip.high{border-color:#bcd3f2;color:#2b62b0}.chip.none{border-color:#e5e0d8;color:var(--sub)}
+.sp{margin-top:auto;padding-top:8px}
+.sec{font-size:1.05em;font-weight:800;margin:22px 2px 10px;letter-spacing:-.02em}
+.list{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}
+.row .k{font-weight:700;white-space:nowrap;flex:none}.row .r{text-align:right}.row .r b{font-size:1.05em}
+.row .r small{display:block;color:var(--sub);font-size:.8em}.row .w{color:var(--sub);font-size:.88em;white-space:nowrap}
+.empty{padding:16px;color:var(--sub)}
+.foot{color:var(--sub);font-size:.8em;text-align:center;margin-top:24px;text-wrap:balance}
+.back{border:0;background:none;color:var(--ink);font-size:.95em;font-weight:700;padding:10px 0;min-height:44px;cursor:pointer;font-family:inherit}
+.dhead .v{font-size:2.1em;font-weight:800;letter-spacing:-.03em;margin-top:8px;line-height:1.2}.dhead .u{color:var(--sub)}
+.seg{display:flex;gap:18px;border-bottom:1px solid var(--line);margin:16px 0 10px}
+.seg button{border:0;background:none;padding:10px 2px;font-size:.92em;font-weight:700;min-height:44px;cursor:pointer;font-family:inherit;
+color:var(--sub);border-bottom:3px solid transparent;margin-bottom:-1px}
+.seg button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.chart{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px 10px 6px}.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--sub);font-size:.78em;padding:6px 6px 2px}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin-top:12px}.card .h{font-weight:800;margin-bottom:4px}
+details.card summary{font-weight:700;cursor:pointer;min-height:28px}details.card p{margin:8px 0 0;color:#4a463f}
+
+@media (min-width:600px){.app{max-width:430px;margin:24px auto;border-radius:36px;box-shadow:0 10px 40px rgba(0,0,0,.15);min-height:880px}}
+</style></head><body><div style="background:#fef3c7;color:#92400e;text-align:center;padding:8px;font:600 13px sans-serif">가상 예시 데이터로 만든 미리보기입니다</div>
+<div class="app" id="app">
+ <div class="scr on" id="home">
+  <div class="top"><div><div class="s" id="hDay"></div><div class="t">오늘의 생활 리듬</div></div>
+   <button class="pill" id="bigBtn" aria-pressed="false">글씨 크게</button></div>
+  <div id="hero"></div><div id="note"></div>
+  <div class="grid" id="tiles"></div>
+  <div class="sec">이번 주 한눈에</div><div class="list" id="week"></div>
+  <div class="sec">최근 4주 알림</div><div class="list" id="alerts"></div>
+  <div class="foot">연구용 시연 화면이에요. 의학적 진단이 아니에요.<br>불편한 곳이 있다면 가족이나 의료진과 이야기해 보세요.</div>
+ </div>
+ <div class="scr" id="detail">
+  <button class="back" id="backBtn">‹ 요약으로</button>
+  <div class="dhead" id="dHead"></div>
+  <div class="seg"><button class="on" data-r="w">최근 1주</button><button data-r="m">최근 4주</button></div>
+  <div class="chart"><div id="dChart"></div><div class="legend" id="dLegend"></div></div>
+  <div class="card" id="dTip"></div>
+  <details class="card"><summary>이 정보는 어떻게 계산하나요?</summary><p id="dHow"></p></details>
+ </div>
+</div>
+<script>
+(function(){
+const DATA = {"label": "예시 인물", "scenes": [{"name": "알림이 뜬 날", "view": {"day": 42, "weekday": "수", "hero": ["attention", "최근 며칠, 평소보다 덜 움직이셨어요", "지난 **4주**의 나와 비교하면 걸음이 적은 날이 이어지고 있어요."], "note": null, "metrics": [{"id": "steps", "name": "걸음", "value": "5,572보", "usual": "평소 **약 8,800보**", "lv": ["low", "며칠째 적어요"], "chart": "bar", "w": {"v": [null, 6596.648, 4461.907, null, 6423.172, 7748.769, 5571.527], "med": [8388.218, 8617.732, 8617.732, 8617.732, 8847.246, 8847.246, 8847.246], "sd": [4737.941, 4485.579, 4365.717, 4365.717, 4674.049, 4433.396, 4057.385], "wd": ["목", "금", "토", "일", "월", "화", "수"]}, "m": {"v": [4072.816, 3156.377, 4333.471, 5694.643, 4941.005, 15523.921, 11098.108, 10393.491, 12136.365, 9628.211, 11583.915, 8388.218, 5532.952, 10842.833, 8847.246, 10420.402, 13386.352, 6168.379, 13007.401, 12706.456, 10239.274, null, 6596.648, 4461.907, null, 6423.172, 7748.769, 5571.527], "med": [5959.159, 5702.664, 5371.904, 5050.549, 5050.549, 4923.331, 4923.331, 4923.331, 4923.331, 4923.331, 4923.331, 5244.686, 5317.824, 5532.952, 5532.952, 5694.643, 5856.961, 6437.203, 6437.203, 6437.203, 7718.295, 8388.218, 8617.732, 8617.732, 8617.732, 8847.246, 8847.246, 8847.246], "sd": [2904.758, 2570.402, 2272.068, 2124.406, 1944.771, 1666.156, 1666.156, 1666.156, 1666.156, 1845.79, 1845.79, 2027.538, 2191.889, 2472.776, 2548.9, 3000.267, 3584.417, 3889.542, 3573.129, 3889.542, 4750.995, 4737.941, 4485.579, 4365.717, 4365.717, 4674.049, 4433.396, 4057.385], "wd": ["목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수"]}, "tip": "하루 걸음이 평소보다 **꾸준히** 줄어드는 것은 컨디션 변화의 신호일 수 있어요. 하루 이틀 적은 것은 흔한 일이에요.", "how": "지난 4주 동안의 내 걸음으로 \"평소 범위\"를 만들어요. 요일마다 다른 생활과, 휴일처럼 모두가 함께 덜 걷는 날은 감안해요. 평소 범위보다 적은 날이 며칠 이어지면 알려 드려요."}, {"id": "sleep", "name": "수면 시간", "value": "6시간 1분", "usual": "평소 **7시간 20분**", "lv": ["low", "평소보다 짧아요"], "chart": "bar", "w": {"v": [338.349, 359.054, 438.478, 404.328, 411.737, 368.607, 361.034], "med": [444.047, 442.136, 439.097, 438.478, 436.471, 436.471, 436.471], "sd": [28.222, 27.446, 31.953, 32.87, 34.835, 34.834, 34.846], "wd": ["목", "금", "토", "일", "월", "화", "수"]}, "m": {"v": [436.471, 452.627, 464.309, null, 506.294, 425.896, 416.012, 459.974, 442.136, 460.648, 480.239, 384.673, 334.886, 424.128, 428.178, 436.471, 401.047, 415.695, 447.349, 449.502, 478.239, 338.349, 359.054, 438.478, 404.328, 411.737, 368.607, 361.034], "med": [446.017, 446.017, 446.772, 452.627, 455.459, 458.468, 458.468, 458.468, 456.3, 456.3, 456.3, 456.3, 449.699, 446.395, 445.988, 445.988, 444.047, 441.443, 441.443, 441.443, 441.443, 444.047, 442.136, 439.097, 438.478, 436.471, 436.471, 436.471], "sd": [44.632, 44.632, 45.751, 39.935, 39.483, 46.903, 46.903, 46.903, 44.324, 41.046, 36.204, 35.429, 35.277, 30.377, 29.774, 28.476, 25.762, 26.573, 27.974, 26.573, 26.573, 28.222, 27.446, 31.953, 32.87, 34.835, 34.834, 34.846], "wd": ["목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수"]}, "tip": "성인은 하루 **7시간 이상** 자는 것이 좋아요. (미국수면의학회 권고)", "how": "밤사이 잠든 시간을 모두 더해요. 지난 4주의 내 수면과 비교해요."}, {"id": "bed", "name": "잠든 시각", "value": "새벽 1:51", "usual": "평소 **새벽 2:10**", "lv": ["ok", "평소와 비슷해요"], "chart": "dot", "w": {"v": [860.943, 766.029, 854.758, 791.91, 839.143, 815.454, 830.762], "med": [864.527, 862.4, 860.943, 856.816, 854.758, 854.758, 848.701], "sd": [62.011, 57.487, 58.067, 51.948, 48.897, 48.897, 47.225], "wd": ["목", "금", "토", "일", "월", "화", "수"]}, "m": {"v": [911.059, 1013.268, 918.734, null, 921.368, 810.954, 791.526, 844.776, 870.377, 821.777, 862.4, 816.848, 887.099, 837.518, 848.701, 856.816, 782.677, 823.626, 894.418, 831.277, 879.091, 860.943, 766.029, 854.758, 791.91, 839.143, 815.454, 830.762], "med": [867.766, 870.047, 882.012, 911.059, 913.061, 916.096, 916.096, 916.096, 916.096, 913.061, 913.061, 913.061, 890.718, 878.738, 878.738, 878.738, 878.738, 868.516, 864.527, 864.527, 862.02, 864.527, 862.4, 860.943, 856.816, 854.758, 854.758, 848.701], "sd": [73.187, 69.805, 60.105, 60.805, 60.411, 51.541, 60.411, 60.411, 60.411, 63.529, 65.22, 65.22, 48.8, 64.082, 63.171, 63.171, 63.171, 73.264, 69.839, 66.185, 58.294, 62.011, 57.487, 58.067, 51.948, 48.897, 48.897, 47.225], "wd": ["목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수"]}, "tip": "매일 **비슷한 시각**에 잠드는 것이 좋아요.", "how": "하룻밤 중 가장 길게 잔 잠이 시작된 시각이에요. 지난 4주의 내 시각과 비교해요."}, {"id": "reg", "name": "수면 규칙성", "value": "일정해요", "usual": "최근 **7일**, 잠드는 시간 차이 **41분**", "lv": ["ok", "일정해요"], "chart": "line", "w": {"v": [49.332, 64.275, 59.819, 63.647, 55.737, 56.681, 41.054], "med": [41.367, 41.56, 41.56, 41.56, 41.56, 47.674, 49.051], "sd": [15.516, 15.644, 15.644, 15.644, 15.644, 19.681, 15.965], "wd": ["목", "금", "토", "일", "월", "화", "수"]}, "m": {"v": [28.121, 49.16, 49.051, null, 41.56, 70.445, 91.716, 93.254, 68.606, 61.343, 57.382, 40.796, 39.075, 31.008, 30.514, 28.273, 40.153, 32.329, 41.164, 41.173, 47.674, 49.332, 64.275, 59.819, 63.647, 55.737, 56.681, 41.054], "med": [46.272, 46.272, 48.774, 49.051, 49.106, 49.106, 52.073, 55.026, 55.139, 55.214, 55.214, 55.214, 55.139, 52.113, 49.106, 49.106, 49.106, 49.106, 49.106, 45.306, 41.367, 41.367, 41.56, 41.56, 41.56, 41.56, 47.674, 49.051], "sd": [13.541, 14.514, 14.439, 14.028, 12.13, 10.75, 12.007, 12.995, 12.995, 15.192, 15.192, 15.192, 15.081, 14.738, 15.07, 16.707, 18.553, 18.553, 19.668, 18.572, 15.882, 15.516, 15.644, 15.644, 15.644, 15.644, 19.681, 15.965], "wd": ["목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수"]}, "tip": "잠드는 시간이 매일 비슷할수록 좋아요. 일주일 동안의 차이가 **65분**보다 작으면 일정한 편, **90분**보다 크면 들쭉날쭉한 편이에요.", "how": "최근 7일 동안 잠의 한가운데 시각이 날마다 얼마나 달랐는지 계산해요."}], "alerts": [{"when": "오늘", "text": "걸음이 적은 날이 이어졌어요"}], "week": [["걸음", "6,160보", "하루 평균 · 지난주보다 **4,522보** 적어요"], ["수면", "6시간 23분", "하루 평균"], ["잠드는 시간", "일정해요", "최근 7일 차이 **41분**"]]}}, {"name": "평소 날", "view": {"day": 35, "weekday": "수", "hero": ["calm", "평소와 비슷한 하루를 보내고 계세요", "지난 **4주**의 나와 비교했어요."], "note": null, "metrics": [{"id": "steps", "name": "걸음", "value": "10,239보", "usual": "평소 **약 7,700보**", "lv": ["ok", "평소와 비슷해요"], "chart": "bar", "w": {"v": [8847.246, 10420.402, 13386.352, 6168.379, 13007.401, 12706.456, 10239.274], "med": [5532.952, 5694.643, 5856.961, 6437.203, 6437.203, 6437.203, 7718.295], "sd": [2548.9, 3000.267, 3584.417, 3889.542, 3573.129, 3889.542, 4750.995], "wd": ["목", "금", "토", "일", "월", "화", "수"]}, "m": {"v": [3293.588, 3813.743, 4513.793, 7718.295, 4905.657, 5856.961, null, 4072.816, 3156.377, 4333.471, 5694.643, 4941.005, 15523.921, 11098.108, 10393.491, 12136.365, 9628.211, 11583.915, 8388.218, 5532.952, 10842.833, 8847.246, 10420.402, 13386.352, 6168.379, 13007.401, 12706.456, 10239.274], "med": [6906.728, 6649.686, 6524.701, 6443.203, 6449.202, 6437.203, 6061.357, 5959.159, 5702.664, 5371.904, 5050.549, 5050.549, 4923.331, 4923.331, 4923.331, 4923.331, 4923.331, 4923.331, 5244.686, 5317.824, 5532.952, 5532.952, 5694.643, 5856.961, 6437.203, 6437.203, 6437.203, 7718.295], "sd": [3123.894, 3432.982, 3419.532, 3419.532, 3407.682, 3413.593, 2856.363, 2904.758, 2570.402, 2272.068, 2124.406, 1944.771, 1666.156, 1666.156, 1666.156, 1666.156, 1845.79, 1845.79, 2027.538, 2191.889, 2472.776, 2548.9, 3000.267, 3584.417, 3889.542, 3573.129, 3889.542, 4750.995], "wd": ["목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수"]}, "tip": "하루 걸음이 평소보다 **꾸준히** 줄어드는 것은 컨디션 변화의 신호일 수 있어요. 하루 이틀 적은 것은 흔한 일이에요.", "how": "지난 4주 동안의 내 걸음으로 \"평소 범위\"를 만들어요. 요일마다 다른 생활과, 휴일처럼 모두가 함께 덜 걷는 날은 감안해요. 평소 범위보다 적은 날이 며칠 이어지면 알려 드려요."}, {"id": "sleep", "name": "수면 시간", "value": "7시간 58분", "usual": "평소 **7시간 20분**", "lv": ["high", "평소보다 길어요"], "chart": "bar", "w": {"v": [428.178, 436.471, 401.047, 415.695, 447.349, 449.502, 478.239], "med": [445.988, 445.988, 444.047, 441.443, 441.443, 441.443, 441.443], "sd": [29.774, 28.476, 25.762, 26.573, 27.974, 26.573, 26.573], "wd": ["목", "금", "토", "일", "월", "화", "수"]}, "m": {"v": [null, 511.245, 445.958, 446.017, 490.164, 412.975, 439.097, 436.471, 452.627, 464.309, null, 506.294, 425.896, 416.012, 459.974, 442.136, 460.648, 480.239, 384.673, 334.886, 424.128, 428.178, 436.471, 401.047, 415.695, 447.349, 449.502, 478.239], "med": [441.459, 442.168, 442.168, 442.787, 445.958, 446.017, 446.017, 446.017, 446.017, 446.772, 452.627, 455.459, 458.468, 458.468, 458.468, 456.3, 456.3, 456.3, 456.3, 449.699, 446.395, 445.988, 445.988, 444.047, 441.443, 441.443, 441.443, 441.443], "sd": [45.89, 44.895, 48.987, 45.814, 44.544, 44.632, 44.632, 44.632, 44.632, 45.751, 39.935, 39.483, 46.903, 46.903, 46.903, 44.324, 41.046, 36.204, 35.429, 35.277, 30.377, 29.774, 28.476, 25.762, 26.573, 27.974, 26.573, 26.573], "wd": ["목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수"]}, "tip": "성인은 하루 **7시간 이상** 자는 것이 좋아요. (미국수면의학회 권고)", "how": "밤사이 잠든 시간을 모두 더해요. 지난 4주의 내 수면과 비교해요."}, {"id": "bed", "name": "잠든 시각", "value": "새벽 2:39", "usual": "평소 **새벽 2:20**", "lv": ["ok", "평소와 비슷해요"], "chart": "dot", "w": {"v": [848.701, 856.816, 782.677, 823.626, 894.418, 831.277, 879.091], "med": [878.738, 878.738, 878.738, 868.516, 864.527, 864.527, 862.02], "sd": [63.171, 63.171, 63.171, 73.264, 69.839, 66.185, 58.294], "wd": ["목", "금", "토", "일", "월", "화", "수"]}, "m": {"v": [null, 866.654, 917.129, 944.29, 832.879, 921.324, 932.475, 911.059, 1013.268, 918.734, null, 921.368, 810.954, 791.526, 844.776, 870.377, 821.777, 862.4, 816.848, 887.099, 837.518, 848.701, 856.816, 782.677, 823.626, 894.418, 831.277, 879.091], "med": [852.646, 854.7, 860.145, 861.219, 861.64, 861.64, 866.654, 867.766, 870.047, 882.012, 911.059, 913.061, 916.096, 916.096, 916.096, 916.096, 913.061, 913.061, 913.061, 890.718, 878.738, 878.738, 878.738, 878.738, 868.516, 864.527, 864.527, 862.02], "sd": [70.399, 75.162, 81.422, 79.83, 79.206, 79.206, 71.772, 73.187, 69.805, 60.105, 60.805, 60.411, 51.541, 60.411, 60.411, 60.411, 63.529, 65.22, 65.22, 48.8, 64.082, 63.171, 63.171, 63.171, 73.264, 69.839, 66.185, 58.294], "wd": ["목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수"]}, "tip": "매일 **비슷한 시각**에 잠드는 것이 좋아요.", "how": "하룻밤 중 가장 길게 잔 잠이 시작된 시각이에요. 지난 4주의 내 시각과 비교해요."}, {"id": "reg", "name": "수면 규칙성", "value": "일정해요", "usual": "최근 **7일**, 잠드는 시간 차이 **48분**", "lv": ["ok", "일정해요"], "chart": "line", "w": {"v": [30.514, 28.273, 40.153, 32.329, 41.164, 41.173, 47.674], "med": [49.106, 49.106, 49.106, 49.106, 49.106, 45.306, 41.367], "sd": [15.07, 16.707, 18.553, 18.553, 19.668, 18.572, 15.882], "wd": ["목", "금", "토", "일", "월", "화", "수"]}, "m": {"v": [null, 55.066, 55.211, 55.217, 36.315, 34.4, 30.795, 28.121, 49.16, 49.051, null, 41.56, 70.445, 91.716, 93.254, 68.606, 61.343, 57.382, 40.796, 39.075, 31.008, 30.514, 28.273, 40.153, 32.329, 41.164, 41.173, 47.674], "med": [43.224, 43.662, 44.288, 44.578, 46.272, 46.272, 46.272, 46.272, 46.272, 48.774, 49.051, 49.106, 49.106, 52.073, 55.026, 55.139, 55.214, 55.214, 55.214, 55.139, 52.113, 49.106, 49.106, 49.106, 49.106, 49.106, 45.306, 41.367], "sd": [14.476, 14.673, 15.602, 15.55, 13.541, 13.541, 13.541, 13.541, 14.514, 14.439, 14.028, 12.13, 10.75, 12.007, 12.995, 12.995, 15.192, 15.192, 15.192, 15.081, 14.738, 15.07, 16.707, 18.553, 18.553, 19.668, 18.572, 15.882], "wd": ["목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수"]}, "tip": "잠드는 시간이 매일 비슷할수록 좋아요. 일주일 동안의 차이가 **65분**보다 작으면 일정한 편, **90분**보다 크면 들쭉날쭉한 편이에요.", "how": "최근 7일 동안 잠의 한가운데 시각이 날마다 얼마나 달랐는지 계산해요."}], "alerts": [], "week": [["걸음", "10,682보", "하루 평균 · 지난주보다 **896보** 많아요"], ["수면", "7시간 17분", "하루 평균"], ["잠드는 시간", "일정해요", "최근 7일 차이 **48분**"]]}}, {"name": "방학 중 덜 걸은 날", "view": {"day": 3, "weekday": "토", "hero": ["calm", "평소와 비슷한 하루를 보내고 계세요", "지난 **4주**의 나와 비교했어요."], "note": "방학·휴일처럼 모두의 생활이 함께 바뀌는 시기예요. 이런 변화는 감안해서 알려 드려요.", "metrics": [{"id": "steps", "name": "걸음", "value": "4,135보", "usual": "평소 **약 7,300보**", "lv": ["low", "평소보다 적어요"], "chart": "bar", "w": {"v": [3571.419, 5548.367, null, 6061.357, 3865.088, 4533.577, 4134.766], "med": [8747.652, 8634.136, 8131.568, 8069.049, 7967.847, 7698.647, 7328.983], "sd": [2541.59, 2672.244, 2604.906, 2456.901, 2594.368, 2195.253, 2019.168], "wd": ["일", "월", "화", "수", "목", "금", "토"]}, "m": {"v": [6374.583, 7929.163, 8006.531, 7033.373, 8131.568, 15081.814, 7114.282, null, 7468.132, 11010.809, 6449.202, 8634.136, 19739.983, 7134.914, 11493.999, 11926.829, 10059.719, 8747.652, 15054.996, 5195.441, 6699.173, 3571.419, 5548.367, null, 6061.357, 3865.088, 4533.577, 4134.766], "med": [10673.237, 10586.861, 10355.984, 10355.984, 9977.715, 9977.715, 10355.984, 10355.984, 10275.429, 9679.923, 10275.429, 10275.429, 9679.923, 9679.923, 9275.917, 9275.917, 9679.923, 9679.923, 9275.917, 9275.917, 8747.652, 8747.652, 8634.136, 8131.568, 8069.049, 7967.847, 7698.647, 7328.983], "sd": [2899.581, 3234.142, 3015.192, 3015.192, 2680.942, 2829.788, 3390.61, 3540.652, 3478.575, 3691.805, 4162.098, 4389.827, 3691.805, 3691.805, 3174.251, 3174.251, 3691.805, 3331.263, 3102.485, 3102.485, 2541.59, 2541.59, 2672.244, 2604.906, 2456.901, 2594.368, 2195.253, 2019.168], "wd": ["일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토"]}, "tip": "하루 걸음이 평소보다 **꾸준히** 줄어드는 것은 컨디션 변화의 신호일 수 있어요. 하루 이틀 적은 것은 흔한 일이에요.", "how": "지난 4주 동안의 내 걸음으로 \"평소 범위\"를 만들어요. 요일마다 다른 생활과, 휴일처럼 모두가 함께 덜 걷는 날은 감안해요. 평소 범위보다 적은 날이 며칠 이어지면 알려 드려요."}, {"id": "sleep", "name": "수면 시간", "value": "8시간", "usual": "평소 **7시간 10분**", "lv": ["high", "평소보다 길어요"], "chart": "bar", "w": {"v": [537.766, 500.498, 506.165, 544.312, 425.915, 480.154, 479.563], "med": [415.831, 416.906, 418.735, 423.232, 432.196, 432.196, 432.196], "sd": [34.112, 35.98, 35.201, 30.983, 42.615, 40.018, 40.018], "wd": ["일", "월", "화", "수", "목", "금", "토"]}, "m": {"v": [443.284, 440.181, 380.279, 375.042, 407.181, 451.503, 402.07, 398.754, 308.991, 409.126, 437.499, 442.787, 442.168, 411.886, 415.914, 458.291, 419.572, 332.878, 465.8, 426.893, 525.012, 537.766, 500.498, 506.165, 544.312, 425.915, 480.154, 479.563], "med": [414.884, 414.884, 414.884, 412.826, 407.971, 409.407, 412.826, 412.826, 409.407, 405.744, 408.154, 408.154, 408.154, 410.38, 411.76, 411.76, 411.76, 413.818, 413.818, 413.818, 413.818, 415.831, 416.906, 418.735, 423.232, 432.196, 432.196, 432.196], "sd": [25.281, 25.281, 27.647, 25.967, 29.261, 24.865, 28.191, 25.967, 24.865, 24.584, 19.901, 24.267, 24.267, 29.548, 24.865, 22.107, 22.107, 25.158, 28.054, 34.442, 28.722, 34.112, 35.98, 35.201, 30.983, 42.615, 40.018, 40.018], "wd": ["일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토"]}, "tip": "성인은 하루 **7시간 이상** 자는 것이 좋아요. (미국수면의학회 권고)", "how": "밤사이 잠든 시간을 모두 더해요. 지난 4주의 내 수면과 비교해요."}, {"id": "bed", "name": "잠든 시각", "value": "새벽 3:23", "usual": "평소 **새벽 2:05**", "lv": ["low", "평소보다 늦어요"], "chart": "dot", "w": {"v": [854.7, 931.853, 915.064, 791.1, 867.766, 861.219, 922.552], "med": [835.585, 836.346, 836.346, 838.471, 838.471, 842.163, 844.33], "sd": [46.971, 46.13, 46.13, 47.239, 47.239, 39.65, 36.436], "wd": ["일", "월", "화", "수", "목", "금", "토"]}, "m": {"v": [834.938, 835.225, 867.555, 873.969, 806.321, 845.332, 796.492, 792.32, 850.592, 780.18, 835.945, 840.997, 860.145, 789.735, 843.329, 825.61, 882.012, 804.004, 791.149, 917.508, 870.047, 854.7, 931.853, 915.064, 791.1, 867.766, 861.219, 922.552], "med": [823.829, 824.146, 824.381, 824.381, 827.333, 827.333, 827.333, 824.381, 824.381, 827.333, 827.333, 829.373, 829.373, 834.62, 834.62, 835.081, 835.081, 835.585, 835.081, 834.62, 835.081, 835.585, 836.346, 836.346, 838.471, 838.471, 842.163, 844.33], "sd": [27.424, 27.424, 25.234, 27.424, 33.185, 30.649, 30.649, 31.454, 36.598, 40.105, 40.105, 41.463, 33.674, 39.397, 39.899, 40.466, 40.466, 45.253, 44.358, 46.971, 46.971, 46.971, 46.13, 46.13, 47.239, 47.239, 39.65, 36.436], "wd": ["일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토"]}, "tip": "매일 **비슷한 시각**에 잠드는 것이 좋아요.", "how": "하룻밤 중 가장 길게 잔 잠이 시작된 시각이에요. 지난 4주의 내 시각과 비교해요."}, {"id": "reg", "name": "수면 규칙성", "value": "일정해요", "usual": "최근 **7일**, 잠드는 시간 차이 **46분**", "lv": ["ok", "일정해요"], "chart": "line", "w": {"v": [61.944, 72.632, 77.854, 56.062, 42.786, 43.662, 46.272], "med": [40.391, 41.963, 41.963, 41.963, 41.963, 41.212, 41.212], "sd": [9.211, 11.191, 11.547, 11.941, 12.262, 12.213, 11.494], "wd": ["일", "월", "화", "수", "목", "금", "토"]}, "m": {"v": [50.306, 45.853, 46.704, 31.379, 21.773, 20.627, 28.386, 33.765, 34.053, 34.534, 33.155, 37.139, 39.416, 39.639, 37.624, 36.002, 30.613, 44.578, 44.288, 54.986, 58.513, 61.944, 72.632, 77.854, 56.062, 42.786, 43.662, 46.272], "med": [41.175, 41.175, 41.175, 41.175, 41.077, 40.975, 40.067, 40.067, 40.067, 40.067, 40.067, 40.067, 40.067, 40.178, 40.289, 40.289, 39.528, 39.528, 39.528, 39.528, 40.391, 40.391, 41.963, 41.963, 41.963, 41.963, 41.212, 41.212], "sd": [6.114, 6.809, 6.718, 6.718, 7.173, 7.599, 8.945, 9.335, 9.443, 9.237, 9.023, 9.023, 8.838, 8.782, 8.667, 8.667, 9.16, 9.413, 9.16, 9.16, 8.872, 9.211, 11.191, 11.547, 11.941, 12.262, 12.213, 11.494], "wd": ["일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토", "일", "월", "화", "수", "목", "금", "토"]}, "tip": "잠드는 시간이 매일 비슷할수록 좋아요. 일주일 동안의 차이가 **65분**보다 작으면 일정한 편, **90분**보다 크면 들쭉날쭉한 편이에요.", "how": "최근 7일 동안 잠의 한가운데 시각이 날마다 얼마나 달랐는지 계산해요."}], "alerts": [], "week": [["걸음", "4,619보", "하루 평균 · 지난주보다 **5,263보** 적어요"], ["수면", "8시간 16분", "하루 평균"], ["잠드는 시간", "일정해요", "최근 7일 차이 **46분**"]]}}]};
+const app=document.getElementById('app');
+let scene=0, cur=null, range='w';
+const HEX={steps:'#2f9e6e',sleep:'#6b62c8',bed:'#3a7bd5',reg:'#1d97a6'};
+const TINT={steps:'#e6f4ed',sleep:'#eeecfa',bed:'#e8f0fb',reg:'#e3f3f5'};
+const SVG=(p)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
+const ICON={steps:SVG('<path d="M4 16v-2.4C4 11.5 3 10.5 3 8c0-2.7 1.5-6 4.5-6C9.4 2 10 3.8 10 5.5c0 3.1-2 5.7-2 8.7V16a2 2 0 1 1-4 0z"/><path d="M20 20v-2.4c0-2.1 1-3.1 1-5.6 0-2.7-1.5-6-4.5-6-1.9 0-2.5 1.8-2.5 3.5 0 3.1 2 5.7 2 8.7V20a2 2 0 1 0 4 0z"/><path d="M16 17h4M4 13h4"/>'),
+  sleep:SVG('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'),
+  bed:SVG('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  reg:SVG('<path d="M3 12c2-5 4-5 6 0s4 5 6 0 4-5 6 0"/>'),
+  attention:SVG('<path d="M12 7v6"/><circle cx="12" cy="17" r=".6" fill="currentColor"/><circle cx="12" cy="12" r="9"/>'),
+  calm:SVG('<path d="M7.5 12.5l3 3 6-6.5"/><circle cx="12" cy="12" r="9"/>'),
+  watch:SVG('<circle cx="12" cy="12" r="9"/><path d="M8 12h.01M12 12h.01M16 12h.01"/>')};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rich=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+const plain=s=>String(s??'').replace(/\*\*/g,'');
+function V(){return DATA.scenes[scene].view;}
+function mi(m){return '<div class="mi"><span class="sq" style="background:'+TINT[m.id]+';color:'+HEX[m.id]+'">'+ICON[m.id]+'</span>'+esc(m.name)+'</div>';}
+function chip(m){return m.value===m.lv[1]?'':'<span class="chip '+m.lv[0]+'">'+esc(m.lv[1])+'</span>';}
+function home(){
+  const v=V();
+  document.getElementById('hDay').textContent='오늘 · '+v.weekday+'요일';
+  const h=v.hero;
+  document.getElementById('hero').innerHTML='<div class="hero '+h[0]+'" role="status"><div class="ic">'+ICON[h[0]]+'</div><div><h3>'+esc(h[1])+'</h3><p>'+rich(h[2])+'</p></div></div>';
+  document.getElementById('note').innerHTML=v.note?'<div class="note">'+rich(v.note)+'</div>':'';
+  document.getElementById('tiles').innerHTML=v.metrics.map((m,i)=>
+    '<button class="tile" data-i="'+i+'" aria-label="'+esc(m.name)+' 자세히 보기">'+mi(m)+
+    '<div class="v">'+esc(m.value)+'</div><div class="u">'+rich(m.usual)+'</div>'+chip(m)+'<div class="sp">'+spark(m)+'</div></button>').join('');
+  document.querySelectorAll('.tile').forEach(t=>t.onclick=()=>open(+t.dataset.i));
+  document.getElementById('week').innerHTML=v.week.map(r=>'<div class="row"><span class="k">'+esc(r[0])+'</span><span class="r"><b>'+esc(r[1])+'</b>'+(r[2]?'<small>'+rich(r[2])+'</small>':'')+'</span></div>').join('');
+  document.getElementById('alerts').innerHTML=v.alerts.length?v.alerts.map(a=>'<div class="row"><span>'+esc(a.text)+'</span><span class="w">'+esc(a.when)+'</span></div>').join(''):'<div class="empty">최근 4주 동안 알림이 없었어요.</div>';
+}
+function spark(m){
+  const s=m.w, vals=s.v, ok=vals.filter(x=>x!=null), meds=s.med.filter(x=>x!=null);
+  if(!ok.length) return '';
+  const W=140,H=34,n=vals.length,slot=W/n,bw=Math.min(12,slot-6);
+  const mx=Math.max(...ok,...meds)*1.08, mn=m.chart==='bar'?0:Math.min(...ok,...meds)*0.92;
+  const y=x=>H-(x-mn)/(mx-mn||1)*H;
+  let out='';
+  vals.forEach((x,i)=>{if(x==null)return;const last=i===n-1,cx=i*slot+slot/2;
+    if(m.chart==='bar') out+='<rect x="'+(cx-bw/2)+'" y="'+y(x)+'" width="'+bw+'" height="'+Math.max(2,H-y(x))+'" rx="'+bw/2+'" fill="'+HEX[m.id]+'" opacity="'+(last?1:.28)+'"/>';
+    else out+='<circle cx="'+cx+'" cy="'+y(x)+'" r="'+(last?4.5:3)+'" fill="'+HEX[m.id]+'" opacity="'+(last?1:.35)+'"/>';});
+  const md=s.med[n-1];
+  if(md!=null) out='<line x1="0" x2="'+W+'" y1="'+y(md)+'" y2="'+y(md)+'" stroke="#b7afa3" stroke-dasharray="3 3"/>'+out;
+  return '<svg viewBox="0 -3 '+W+' '+(H+6)+'" width="100%" height="38" aria-hidden="true">'+out+'</svg>';
+}
+function open(i){cur=i;range='w';document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.r==='w'));
+  document.getElementById('home').classList.remove('on');document.getElementById('detail').classList.add('on');detail();app.scrollIntoView({block:'start'});}
+function detail(){
+  const m=V().metrics[cur];
+  document.getElementById('dHead').innerHTML=mi(m)+'<div class="v">'+esc(m.value)+'</div><div class="u">'+rich(m.usual)+'</div>'+chip(m);
+  document.getElementById('dChart').innerHTML=chart(m, range==='w'?m.w:m.m);
+  document.getElementById('dLegend').innerHTML='<span><i style="background:'+HEX[m.id]+'"></i>내 기록</span><span><i style="background:#e4ded3"></i>평소 범위 (지난 4주)</span>';
+  document.getElementById('dTip').innerHTML='<div class="h">알아두면 좋아요</div>'+rich(m.tip);
+  document.getElementById('dHow').textContent=plain(m.how);
+}
+function fmtY(m,x){if(m.id==='steps')return x===0?'0':(x>=10000?(x/10000).toFixed(x%10000?1:0)+'만':(x/1000).toFixed(x%1000?1:0)+'천');if(m.id==='sleep')return Math.round(x/60)+'시간';
+  if(m.id==='bed'){let t=(Math.round(x)+720)%1440;return Math.floor(t/60)+'시';}return Math.round(x)+'분';}
+function chart(m,s){
+  const W=340,H=190,L=40,R=8,T=10,Bm=26,n=s.v.length,cw=(W-L-R)/n;
+  const all=[].concat(s.v,s.med.map((x,i)=>x!=null&&s.sd[i]!=null?x+s.sd[i]:null),s.med.map((x,i)=>x!=null&&s.sd[i]!=null?x-s.sd[i]:null)).filter(x=>x!=null);
+  const raw=(Math.max(...all)-(m.chart==='bar'?0:Math.min(...all)))/3||1, p10=Math.pow(10,Math.floor(Math.log10(raw)));
+  const stp=[1,2,2.5,5,10].map(f=>f*p10).find(v=>v>=raw);
+  let mn=m.chart==='bar'?0:Math.floor(Math.min(...all)/stp)*stp, mx=Math.ceil(Math.max(...all)/stp)*stp;
+  const y=x=>T+(H-T-Bm)*(1-(x-mn)/(mx-mn||1)), cx=i=>L+cw*i+cw/2;
+  let g='';
+  for(let val=mn;val<=mx+1e-9;val+=stp){const yy=y(val);g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+yy+'" y2="'+yy+'" stroke="#efebe4"/><text x="'+(L-6)+'" y="'+(yy+4)+'" text-anchor="end" font-size="11" fill="#9a938a">'+fmtY(m,val)+'</text>';}
+  let up='',lo='';s.med.forEach((x,i)=>{if(x==null||s.sd[i]==null)return;up+=(up?' L':'M')+cx(i)+' '+y(x+s.sd[i]);});
+  for(let i=n-1;i>=0;i--){const x=s.med[i];if(x==null||s.sd[i]==null)continue;lo+=' L'+cx(i)+' '+y(Math.max(mn,x-s.sd[i]));}
+  if(up) g+='<path d="'+up+lo+' Z" fill="#e4ded3" opacity=".7"/>';
+  s.v.forEach((x,i)=>{if(x==null)return;const last=i===n-1;
+    if(m.chart==='bar'){const bw=Math.max(3,Math.min(18,cw*.6));g+='<rect x="'+(cx(i)-bw/2)+'" y="'+y(x)+'" width="'+bw+'" height="'+(y(mn)-y(x))+'" rx="'+Math.min(5,bw/2)+'" fill="'+HEX[m.id]+'" opacity="'+(last?1:.5)+'"/>';}
+    else g+='<circle cx="'+cx(i)+'" cy="'+y(x)+'" r="'+(last?5.5:4)+'" fill="'+HEX[m.id]+'" opacity="'+(last?1:.55)+'"/>';});
+  if(m.chart!=='bar'){let p='';s.v.forEach((x,i)=>{if(x==null)return;p+=(p?' L':'M')+cx(i)+' '+y(x);});g+='<path d="'+p+'" fill="none" stroke="'+HEX[m.id]+'" stroke-width="2" opacity=".45"/>';}
+  const step=n>10?7:1;
+  s.wd.forEach((w,i)=>{const back=n-1-i;if(back%step)return;const lab=back===0?'오늘':(n>10?back+'일 전':w);
+    g+='<text x="'+cx(i)+'" y="'+(H-6)+'" text-anchor="middle" font-size="11" fill="'+(back===0?'#23211d':'#9a938a')+'" font-weight="'+(back===0?700:400)+'">'+lab+'</text>';});
+  return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(m.name)+' 기록과 평소 범위">'+g+'</svg>';
+}
+document.getElementById('backBtn').onclick=()=>{document.getElementById('detail').classList.remove('on');document.getElementById('home').classList.add('on');};
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{range=b.dataset.r;document.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));detail();});
+const big=document.getElementById('bigBtn');
+big.onclick=()=>{const on=app.classList.toggle('big');big.setAttribute('aria-pressed',on);big.textContent=on?'기본 글씨':'글씨 크게';};
+window.demoScene=i=>{scene=i;document.getElementById('detail').classList.remove('on');document.getElementById('home').classList.add('on');home();
+  document.querySelectorAll('.scene-btn').forEach((b,j)=>b.classList.toggle('on',j===i));};
+home();
+})();
+</script></body></html>

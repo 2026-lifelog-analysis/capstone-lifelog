@@ -9,6 +9,9 @@
   python3 -I dashboard/export_person.py <person.json>                     # 참가자 A 기록 (발표용일 때만 필요)
   python3 -I dashboard/build.py 발표용 <person.json> <출력.html>
   python3 -I dashboard/build.py 공유용 - <출력.html>
+  python3 -I dashboard/build.py 미리보기 dashboard/preview/sample_person.json dashboard/preview/dashboard.html
+    → 가상 예시 인물(sample_person.py)로 만든 미리보기. NetHealth 없이 누구나 같은 화면을 볼 수 있고 레포에 올린다.
+      그림 라이브러리를 인터넷(cdn.plot.ly)에서 불러오므로 파일이 작다
 발표용은 휴대폰에서 바로 열 수 있는 모니터링 데모 한 장(<출력>_모바일데모.html)도 함께 만든다.
 
 절을 추가하려면: figures_*.py에 그림 함수를 만들고 아래 research_sections() / monitor_sections()에 한 줄 넣는다.
@@ -119,7 +122,8 @@ def monitor_tab(p):
                      for i, s in enumerate(data['scenes']))
     html_ = (f'<div class="demo-wrap"><div class="phone"><div class="notch"></div>{body}</div>'
              '<aside class="presenter"><h3>보호자·본인이 보는 화면 (데모)</h3>'
-             f'<p>NetHealth {p["label"]}의 실제 기록입니다. 날짜는 지우고 요일과 "n일 전"으로만 보여줍니다.</p>'
+             + (f'<p>{p["label"]}의 가상 데이터입니다. 실제 사람의 기록이 아닙니다.</p>' if p.get('sample') else
+                f'<p>NetHealth {p["label"]}의 실제 기록입니다. 날짜는 지우고 요일과 "n일 전"으로만 보여줍니다.</p>') +
              f'<div class="scenes"><b>발표용 장면 전환</b>{scenes}</div>'
              '<h3>설계 원칙</h3><ul>'
              '<li><b>요약 먼저:</b> 첫 화면은 문장 하나와 카드 4장. 카드를 누르면 자세히</li>'
@@ -135,11 +139,13 @@ def monitor_tab(p):
 
 def standalone_demo(p):
     css, body, js, _ = DA.render(p)
+    sample = ('<div style="background:#fef3c7;color:#92400e;text-align:center;padding:8px;font:600 13px sans-serif">'
+              '가상 예시 데이터로 만든 미리보기입니다</div>') if p.get('sample') else ''
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f6f4f0">
 <title>오늘의 생활 리듬</title><style>body{{margin:0;background:#f6f4f0}}{css}
 @media (min-width:600px){{.app{{max-width:430px;margin:24px auto;border-radius:36px;box-shadow:0 10px 40px rgba(0,0,0,.15);min-height:880px}}}}
-</style></head><body>{body}<script>{js}</script></body></html>"""
+</style></head><body>{sample}{body}<script>{js}</script></body></html>"""
 
 
 CSS = """
@@ -172,6 +178,7 @@ section{background:var(--panel);border:1px solid var(--line);border-radius:12px;
 .presenter ul{padding-left:18px}.presenter li{margin:6px 0}.scenes{display:flex;flex-direction:column;gap:8px;margin:12px 0 18px}
 .scene-btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;text-align:left;font-size:15px;cursor:pointer;font-family:inherit}
 .scene-btn.on{border-color:var(--navy);background:#eef2ff;font-weight:700}
+.sample-banner{background:#fef3c7;color:#92400e;text-align:center;padding:8px 16px;font-size:14px;font-weight:600}
 footer{color:#94a3b8;font-size:12px;text-align:right;max-width:1280px;margin:0 auto;padding:0 32px 40px}
 @media (max-width:900px){.grid2{grid-template-columns:1fr}.flow{flex-direction:column}}
 """
@@ -185,14 +192,19 @@ window.dispatchEvent(new Event('resize'));}
 
 def main():
     mode, person, out = sys.argv[1], sys.argv[2], Path(sys.argv[3])
-    if mode not in ('발표용', '공유용'):
+    if mode not in ('발표용', '공유용', '미리보기'):
         raise SystemExit('모드는 발표용 또는 공유용')
-    p = json.loads(Path(person).read_text()) if mode == '발표용' else None
+    p = json.loads(Path(person).read_text()) if mode in ('발표용', '미리보기') else None
+    if mode == '미리보기':
+        lib = f'<script src="https://cdn.plot.ly/plotly-{plotly.offline.get_plotlyjs_version()}.min.js"></script>'
+        banner = '<div class="sample-banner">가상 예시 데이터로 만든 미리보기입니다. 연구 결과 숫자는 실제 값이고, 사람 한 명의 기록은 가상입니다.</div>'
+    else:
+        lib, banner = f'<script>{plotly.offline.get_plotlyjs()}</script>', ''
     research = ''.join(research_sections(p))
     monitor, demo_css, demo_js = monitor_tab(p)
     page = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>일상생활 이탈 탐지</title>
-<style>{CSS}{demo_css}</style><script>{plotly.offline.get_plotlyjs()}</script></head><body>
+<style>{CSS}{demo_css}</style>{lib}</head><body>{banner}
 <header><h1>라이프로그 기반 개인별 일상생활 이탈 탐지</h1>
 </header>
 <nav><button data-t="tab-r" class="on" onclick="showTab('tab-r')">연구</button>
