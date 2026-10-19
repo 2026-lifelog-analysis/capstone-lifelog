@@ -9,6 +9,7 @@
   python3 -I dashboard/export_person.py <person.json>                     # 참가자 A 기록 (발표용일 때만 필요)
   python3 -I dashboard/build.py 발표용 <person.json> <출력.html>
   python3 -I dashboard/build.py 공유용 - <출력.html>
+발표용은 휴대폰에서 바로 열 수 있는 모니터링 데모 한 장(<출력>_모바일데모.html)도 함께 만든다.
 
 절을 추가하려면: figures_*.py에 그림 함수를 만들고 아래 research_sections() / monitor_sections()에 한 줄 넣는다.
 """
@@ -22,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import plotly.offline                   # noqa: E402
 
-import figures_monitor as FM            # noqa: E402
+import demo_app as DA                   # noqa: E402
 import figures_research as FR           # noqa: E402
 import results_data as RD               # noqa: E402
 
@@ -111,22 +112,36 @@ def research_sections(p):
     return out
 
 
-def monitor_sections(p):
-    out = ['<div class="disclaimer">연구용 시연 화면입니다. 의학적 진단이 아니며, "평소와 다름"은 그 사람의 최근 28일과 비교한 결과입니다.</div>']
+def monitor_tab(p):
+    """사용자용 데모를 휴대폰 틀에 넣고, 옆에 발표자용 설명과 장면 버튼을 둔다."""
     if not p:
-        return out + [private_note()]
-    out.append(section('d1', f"D1. 오늘 상태 · {p['label']}", 'done',
-                       '<div class="day-pick"><label>날짜 선택 <input type="range" id="daySlider" min="0" max="55"></label>'
-                       '<span id="dayLabel"></span></div><div id="statusLine" class="status"></div>'
-                       '<div class="cards four" id="dayCards"></div>'))
-    out.append(section('d2', 'D2. 최근 8주 타임라인', 'done', fig_html(FM.timeline(p)),
-                       note='파란 선 = 평소(직전 28일 중앙값), 주황 삼각형 = 평소와 다름. 음영은 방학·휴일·시험 기간.'))
-    for sid, title, desc in [('d3', 'D3. 주간 리듬 변화', '주별 평균과 수면 규칙성의 추세 (원 제안서의 주간 생활패턴 리듬 변화)'),
-                             ('d4', 'D4. 경보 기록', '경보 날짜 · 원인 지표 · 그날의 맥락'),
-                             ('d5', 'D5. 설문 겹쳐 보기', '팀원 파일럿의 피로·기분·수면 만족도를 타임라인에 겹침'),
-                             ('d6', 'D6. 장기 추세', '월 단위 활동 리듬 진폭·낮잠 추세 (인지 저하 연결, 경보 없음)')]:
-        out.append(section(sid, title, 'final', f'<div class="placeholder">{desc}</div>'))
-    return out
+        return '<div class="placeholder">모니터링 데모는 개인 기록이 필요해 발표용 빌드에서만 보입니다.</div>', '', ''
+    css, body, js, data = DA.render(p)
+    scenes = ''.join(f'<button class="scene-btn{" on" if i == 0 else ""}" onclick="demoScene({i})">{s["name"]}</button>'
+                     for i, s in enumerate(data['scenes']))
+    html_ = (f'<div class="demo-wrap"><div class="phone"><div class="notch"></div>{body}</div>'
+             '<aside class="presenter"><h3>보호자·본인이 보는 화면 (데모)</h3>'
+             f'<p>NetHealth {p["label"]}의 실제 기록입니다. 날짜는 지우고 요일과 "n일 전"으로만 보여줍니다.</p>'
+             f'<div class="scenes"><b>발표용 장면 전환</b>{scenes}</div>'
+             '<h3>설계 원칙</h3><ul>'
+             '<li><b>요약 먼저:</b> 첫 화면은 문장 하나와 카드 4장. 카드를 누르면 자세히</li>'
+             '<li><b>일상어:</b> 퍼센트·전문 용어 대신 "평소보다 적어요"</li>'
+             '<li><b>나와 비교:</b> 다른 사람이 아니라 지난 4주의 나와 비교</li>'
+             '<li><b>날짜를 고르지 않음:</b> 항상 오늘 기준</li>'
+             '<li><b>접근성:</b> 큰 글씨 전환, 넓은 터치 영역, 빨강 대신 부드러운 주황</li>'
+             '<li><b>진단하지 않음:</b> "위험" 대신 "평소와 다름", 의료진 상담 안내</li></ul>'
+             '<p class="source">상태 판정 규칙: dashboard/demo_app.py · 수면 규칙성 경계 65분(Brindle 2019)·90분(Huang 2020)</p>'
+             '</aside></div>')
+    return html_, css, js
+
+
+def standalone_demo(p):
+    css, body, js, _ = DA.render(p)
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f2f2f7">
+<title>오늘의 생활 리듬</title><style>body{{margin:0;background:#f2f2f7}}{css}
+@media (min-width:600px){{.app{{max-width:430px;margin:24px auto;border-radius:36px;box-shadow:0 10px 40px rgba(0,0,0,.15);min-height:880px}}}}
+</style></head><body>{body}<script>{js}</script></body></html>"""
 
 
 CSS = """
@@ -142,7 +157,7 @@ section{background:var(--panel);border:1px solid var(--line);border-radius:12px;
 .badge{font-size:13px;padding:2px 10px;border-radius:999px;font-weight:600}.st-done{background:#dcfce7;color:#166534}
 .st-doing{background:#fef9c3;color:#854d0e}.st-final{background:#e2e8f0;color:#334155}.inj{background:#ffedd5;color:#9a3412}
 .note{color:var(--muted);margin:10px 0 0}.source{color:#94a3b8;font-size:13px;margin:6px 0 0}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:14px}.cards.four{grid-template-columns:repeat(4,1fr)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:14px}
 .card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#fbfdff}.card-k{font-size:14px;color:var(--muted);font-weight:600}
 .card-v{font-size:16px;margin-top:4px}.big{font-size:30px;font-weight:700}.up{color:var(--orange)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -151,39 +166,22 @@ section{background:var(--panel);border:1px solid var(--line);border-radius:12px;
 .vflow{text-align:center}.vbox{border:2px solid var(--line);border-radius:10px;padding:10px;margin:6px auto;font-weight:600;background:#fbfdff}
 .vsplit{display:flex;gap:10px}.vsplit .vbox{flex:1;font-weight:400}
 .placeholder{border:2px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:#94a3b8;margin-top:12px}
-.disclaimer{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-weight:600}
-.day-pick{display:flex;align-items:center;gap:14px;margin-top:12px}.day-pick input{width:360px}
-.status{margin-top:12px;font-size:18px;font-weight:700}.status.alert{color:var(--orange)}.status.calm{color:#166534}
+.demo-wrap{display:flex;gap:40px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.phone{width:400px;height:820px;border-radius:48px;border:12px solid #1c1c1e;overflow-y:auto;position:relative;background:#f2f2f7;box-shadow:0 20px 50px rgba(15,23,42,.25)}
+.phone::-webkit-scrollbar{width:0}.notch{position:sticky;top:0;height:26px;background:#f2f2f7;z-index:2}
+.notch::after{content:"";position:absolute;left:50%;top:6px;transform:translateX(-50%);width:110px;height:22px;border-radius:12px;background:#1c1c1e}
+.presenter{max-width:460px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 24px}
+.presenter ul{padding-left:18px}.presenter li{margin:6px 0}.scenes{display:flex;flex-direction:column;gap:8px;margin:12px 0 18px}
+.scene-btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 14px;text-align:left;font-size:15px;cursor:pointer;font-family:inherit}
+.scene-btn.on{border-color:var(--navy);background:#eef2ff;font-weight:700}
 footer{color:var(--muted);font-size:14px;max-width:1280px;margin:0 auto;padding:0 32px 40px}
-@media (max-width:900px){.grid2,.cards.four{grid-template-columns:1fr}.flow{flex-direction:column}}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}.flow{flex-direction:column}}
 """
 
 JS = """
 function showTab(id){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id===id));
 document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===id));
 window.dispatchEvent(new Event('resize'));}
-const P = %s;
-function clock(m){if(m==null)return '-';let t=(Math.round(m)+720)%%1440;return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%%60).padStart(2,'0');}
-function pct(v,m){if(v==null||m==null||m===0)return null;return Math.round((v/m-1)*100);}
-function fmt(n,u){if(n==null)return '기록 없음';return (n>0?'+':'')+n+u;}
-function renderDay(i){if(!P)return;const d=P.days,k=i+28;
-const term=d.term[k]||'-',ev=d.event[k]&&d.event[k]!=='없음'?' · '+d.event[k]:'';
-document.getElementById('dayLabel').textContent=i+'일차 · 연구 '+(d.study_week[k]??'-')+'주차 · '+term+ev;
-const st=pct(d.steps[k],d.steps_med[k]),sl=pct(d.sleep_min[k],d.sleep_med[k]);
-const bd=(d.bed_min[k]!=null&&d.bed_med[k]!=null)?Math.round(d.bed_min[k]-d.bed_med[k]):null;
-const rg=d.mid_sd[k]!=null?Math.round(d.mid_sd[k]):null,rgm=d.mid_sd_med[k]!=null?Math.round(d.mid_sd_med[k]):null;
-const C=[['걸음','평소 대비',fmt(st,'%%'),st!=null&&st<=-20],['수면 시간','평소 대비',fmt(sl,'%%'),sl!=null&&sl<=-15],
-['잠든 시각',clock(d.bed_min[k])+' (평소 '+clock(d.bed_med[k])+')',fmt(bd,'분'),bd!=null&&bd>=60],
-['수면 규칙성','7일 흔들림 (평소 '+(rgm??'-')+'분)',rg==null?'기록 없음':rg+'분',rg!=null&&rgm!=null&&rg>rgm*1.5]];
-document.getElementById('dayCards').innerHTML=C.map(c=>'<div class="card"><div class="card-k">'+c[0]+'</div><div class="big'+(c[3]?' up':'')+'">'+c[2]+'</div><div class="card-v">'+c[1]+'</div></div>').join('');
-const s=document.getElementById('statusLine'),why=[];
-if(d.a_final[k])why.push('걸음 감소 누적');if(d.a_reg[k])why.push('수면 규칙성 저하');
-const acc=d.S_final[k]!=null?d.S_final[k]/P.h.final:0;
-if(why.length){s.className='status alert';s.textContent='● 평소와 다름 — 주된 원인: '+why.join(', ');}
-else if(acc>=0.5){s.className='status alert';s.textContent='◐ 걸음 감소가 누적되는 중 (경보선의 '+Math.round(acc*100)+'%%)';}
-else{s.className='status calm';s.textContent='○ 평소 범위';}}
-document.addEventListener('DOMContentLoaded',()=>{const sl=document.getElementById('daySlider');
-if(sl&&P){sl.value=P.alarm_day;renderDay(P.alarm_day);sl.addEventListener('input',e=>renderDay(+e.target.value));}});
 """
 
 
@@ -194,21 +192,25 @@ def main():
     p = json.loads(Path(person).read_text()) if mode == '발표용' else None
     today = dt.date.today().isoformat()
     research = ''.join(research_sections(p))
-    monitor = ''.join(monitor_sections(p))
+    monitor, demo_css, demo_js = monitor_tab(p)
     log = ''.join(f'<li>{v} ({d}) {t}</li>' for v, d, t in RD.CHANGELOG)
     page = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>일상생활 이탈 탐지</title>
-<style>{CSS}</style><script>{plotly.offline.get_plotlyjs()}</script></head><body>
+<style>{CSS}{demo_css}</style><script>{plotly.offline.get_plotlyjs()}</script></head><body>
 <header><h1>라이프로그 기반 개인별 일상생활 이탈 탐지</h1>
 <div class="meta">동국대 컴퓨터·AI학부 종합설계 · {VERSION} · {today} 생성 · {mode}</div></header>
 <nav><button data-t="tab-r" class="on" onclick="showTab('tab-r')">연구</button>
 <button data-t="tab-m" onclick="showTab('tab-m')">모니터링 데모</button></nav>
 <main><div id="tab-r" class="tab on">{research}</div><div id="tab-m" class="tab">{monitor}</div></main>
 <footer><b>변경 이력</b><ul>{log}</ul></footer>
-<script>{JS % json.dumps(p, ensure_ascii=False) if p else JS % 'null'}</script></body></html>"""
+<script>{JS}</script><script>{demo_js}</script></body></html>"""
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(page, encoding='utf-8')
     print(f'{mode} 대시보드 저장: {out} ({out.stat().st_size / 1e6:.1f} MB)')
+    if p:
+        mob = out.with_name(out.stem + '_모바일데모.html')
+        mob.write_text(standalone_demo(p), encoding='utf-8')
+        print(f'모바일 데모 저장: {mob} ({mob.stat().st_size / 1e3:.0f} KB)')
 
 
 if __name__ == "__main__":

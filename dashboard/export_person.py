@@ -123,9 +123,9 @@ def main():
         'event': [None if pd.isna(a) else a for a in seg['event_tag']],
         'dow': [int(i.dayofweek) for i in seg.index],
         'steps': col(x), 'steps_med': col(seg['steps_med']), 'steps_sd': col(seg['steps_sd']),
-        'sleep_min': col(seg['sleep_min']), 'sleep_med': col(seg['sleep_med']),
-        'bed_min': col(seg['bed_min']), 'bed_med': col(seg['bed_med']),
-        'mid_sd': col(seg['mid_sd']), 'mid_sd_med': col(seg['mid_sd_med']),
+        'sleep_min': col(seg['sleep_min']), 'sleep_med': col(seg['sleep_med']), 'sleep_sd': col(seg['sleep_sd']),
+        'bed_min': col(seg['bed_min']), 'bed_med': col(seg['bed_med']), 'bed_sd': col(seg['bed_sd']),
+        'mid_sd': col(seg['mid_sd']), 'mid_sd_med': col(seg['mid_sd_med']), 'mid_sd_sd': col(seg['mid_sd_sd']),
     }
     for k in ['b_final', 'S_final', 'a_final', 'S_base', 'a_base', 'b_group', 'a_group', 'b_reg', 'S_reg', 'a_reg']:
         days[k] = col(seg[k])
