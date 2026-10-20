@@ -13,6 +13,7 @@
     → 가상 예시 인물(sample_person.py)로 만든 미리보기. NetHealth 없이 누구나 같은 화면을 볼 수 있고 레포에 올린다.
       그림 라이브러리를 인터넷(cdn.plot.ly)에서 불러오므로 파일이 작다
 발표용은 휴대폰에서 바로 열 수 있는 모니터링 데모 한 장(<출력>_모바일데모.html)도 함께 만든다.
+PC 대시보드 탭(demo_pc.py)은 16:9 한 화면에 들어오는 보호자·관리자 화면. 발표 화면을 꽉 채우도록 크기를 맞춘다.
 
 절을 추가하려면: figures_*.py에 그림 함수를 만들고 아래 research_sections() / monitor_sections()에 한 줄 넣는다.
 """
@@ -26,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import plotly.offline                   # noqa: E402
 
 import demo_app as DA                   # noqa: E402
+import demo_pc as DP                    # noqa: E402
 import figures_research as FR           # noqa: E402
 import results_data as RD               # noqa: E402
 
@@ -137,6 +139,14 @@ def monitor_tab(p):
     return html_, css, js
 
 
+def pc_tab(p):
+    """보호자·관리자용 PC 화면. 16:9 한 장을 발표 화면 크기에 맞춰 늘린다."""
+    if not p:
+        return '<div class="placeholder">PC 대시보드는 개인 기록이 필요해 발표용 빌드에서만 보입니다.</div>', '', ''
+    css, body, js, _ = DP.render(p)
+    return body, css, js
+
+
 def standalone_demo(p):
     css, body, js, _ = DA.render(p)
     sample = ('<div style="background:#fef3c7;color:#92400e;text-align:center;padding:8px;font:600 13px sans-serif">'
@@ -186,6 +196,7 @@ footer{color:#94a3b8;font-size:12px;text-align:right;max-width:1280px;margin:0 a
 JS = """
 function showTab(id){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id===id));
 document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===id));
+document.body.classList.toggle('pc-mode',id==='tab-p');window.scrollTo(0,0);
 window.dispatchEvent(new Event('resize'));}
 """
 
@@ -202,16 +213,18 @@ def main():
         lib, banner = f'<script>{plotly.offline.get_plotlyjs()}</script>', ''
     research = ''.join(research_sections(p))
     monitor, demo_css, demo_js = monitor_tab(p)
+    pc, pc_css, pc_js = pc_tab(p)
     page = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>일상생활 이탈 탐지</title>
-<style>{CSS}{demo_css}</style>{lib}</head><body>{banner}
+<style>{CSS}{demo_css}{pc_css}</style>{lib}</head><body>{banner}
 <header><h1>라이프로그 기반 개인별 일상생활 이탈 탐지</h1>
 </header>
 <nav><button data-t="tab-r" class="on" onclick="showTab('tab-r')">연구</button>
-<button data-t="tab-m" onclick="showTab('tab-m')">모니터링 데모</button></nav>
-<main><div id="tab-r" class="tab on">{research}</div><div id="tab-m" class="tab">{monitor}</div></main>
+<button data-t="tab-m" onclick="showTab('tab-m')">모니터링 데모</button>
+<button data-t="tab-p" onclick="showTab('tab-p')">PC 대시보드</button></nav>
+<main><div id="tab-r" class="tab on">{research}</div><div id="tab-m" class="tab">{monitor}</div><div id="tab-p" class="tab">{pc}</div></main>
 <footer>동국대 컴퓨터·AI학부 종합설계 · {RD.VERSION} · {mode}</footer>
-<script>{JS}</script><script>{demo_js}</script></body></html>"""
+<script>{JS}</script><script>{demo_js}</script><script>{pc_js}</script></body></html>"""
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(page, encoding='utf-8')
     print(f'{mode} 대시보드 저장: {out} ({out.stat().st_size / 1e6:.1f} MB)')
