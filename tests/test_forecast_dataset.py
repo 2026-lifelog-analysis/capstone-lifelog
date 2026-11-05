@@ -192,7 +192,7 @@ def test_early_nights_are_kept_with_nan_inputs():
 
 
 def test_bed_and_wake_lags_use_their_own_night_reference():
-    S = _sleep([_night('2016-03-01', '23:30', '07:15'), _night('2016-03-02', '01:00', '08:00')])
+    S = _sleep([_night('2016-03-01', '23:30', '07:15'), _night('2016-03-02', '01:00', '08:00', 400)])   # 421분 누움
     r = _row(fd.build_forecast_table(S).table, '2016-03-02')
     assert r['bedtime_lag1'] == 690 and r['waketime_lag1'] == 19.25 * 60
     assert r['target_bedtime'] == 780
@@ -335,3 +335,70 @@ def test_date_assumption_check_prefers_end_date_on_synthetic():
     assert d['end_date']['rate'] < d['start_date']['rate']
     assert d['end_date']['pieces'] == d['start_date']['pieces']
     assert d['clock_matches_bedtimedur'] == 1
+
+
+# ---------- minsasleep 결측·무효 ----------
+
+def _reason(data, date):
+    return data.candidates.set_index('date').loc[pd.Timestamp(date), 'reason']
+
+
+def test_single_piece_missing_asleep_is_not_zero():
+    S = _sleep([_night('2016-03-01'), _night('2016-03-02')])
+    S.loc[1, 'minsasleep'] = np.nan
+    data = fd.build_forecast_table(S)
+    assert pd.Timestamp('2016-03-02') not in set(data.table['date'])      # 0분 정답이 생기지 않음
+    assert _reason(data, '2016-03-02') == 'invalid_sleep_value'
+    assert data.info['invalid_sleep']['pieces_by_issue']['missing'] == 1
+    assert data.info['invalid_sleep']['nights_excluded'] == 1
+    assert data.info['invalid_sleep']['people_with_excluded_nights'] == 1
+
+
+def test_partially_missing_block_is_not_partial_sum():
+    # 21:30~23:30, 00:30~07:00 한 덩어리. 둘째만 결측 → 첫째만 더한 110분을 정답으로 만들지 않음
+    S = _sleep([('2016-03-01 21:30', '2016-03-01 23:30', 110), ('2016-03-02 00:30', '2016-03-02 07:00', 370)])
+    S.loc[1, 'minsasleep'] = np.nan
+    data = fd.build_forecast_table(S)
+    assert len(data.table) == 0 and _reason(data, '2016-03-01') == 'invalid_sleep_value'
+    b = fd.sleep_blocks(fd.assign_nights(fd.sleep_episodes(S)[0]))
+    assert np.isnan(b['sleep_min'].iloc[0]) and b['n_invalid'].iloc[0] == 1
+
+
+def test_invalid_candidate_does_not_hand_main_sleep_to_other_block():
+    # 덩어리 A 22:00~01:00 (170), 덩어리 B 03:00~09:00 (값 무효). B를 빼면 A가 주수면이 되겠지만 그렇게 하지 않음
+    S = _sleep([('2016-03-01 22:00', '2016-03-02 01:00', 170), ('2016-03-02 03:00', '2016-03-02 09:00', 300)])
+    S.loc[1, 'minsasleep'] = -5
+    data = fd.build_forecast_table(S)
+    assert len(data.table) == 0 and _reason(data, '2016-03-01') == 'invalid_sleep_value'
+
+
+@pytest.mark.parametrize('value, issue', [(-1, 'negative'), (np.inf, 'nonfinite'), (-np.inf, 'nonfinite'),
+                                          ('abc', 'non_numeric'), (482, 'exceeds_bedtimedur')])
+def test_invalid_asleep_values_are_classified_and_night_excluded(value, issue):
+    S = _sleep([_night('2016-03-01', '23:00', '07:00', 450)])              # bedtimedur = 481
+    S['minsasleep'] = S['minsasleep'].astype(object)
+    S.loc[0, 'minsasleep'] = value
+    data = fd.build_forecast_table(S)
+    assert data.info['invalid_sleep']['pieces_by_issue'][issue] == 1
+    assert len(data.table) == 0 and _reason(data, '2016-03-01') == 'invalid_sleep_value'
+
+
+def test_asleep_equal_to_bedtimedur_and_zero_are_valid():
+    S = _sleep([_night('2016-03-01', '23:00', '07:00', 481),                # = bedtimedur (경계 포함)
+                ('2016-03-02 14:00', '2016-03-02 14:30', 0), _night('2016-03-02', '23:00', '07:00', 400)])
+    data = fd.build_forecast_table(S)
+    assert _row(data.table, '2016-03-01')['target_sleep_min'] == 481
+    assert sum(data.info['invalid_sleep']['pieces_by_issue'].values()) == 0
+    S0 = _sleep([_night('2016-03-01', '23:00', '07:00', 0)])                # 정상 기록된 0분
+    t0 = fd.build_forecast_table(S0).table
+    assert len(t0) == 1 and t0['target_sleep_min'].iloc[0] == 0
+
+
+def test_excluded_invalid_night_stays_nan_in_later_lags():
+    S = _sleep([_night(f'2016-03-{d:02d}') for d in range(1, 5)])
+    S.loc[1, 'minsasleep'] = np.nan                                          # 밤 03-02
+    data = fd.build_forecast_table(S)
+    r3, r4 = _row(data.table, '2016-03-03'), _row(data.table, '2016-03-04')
+    assert np.isnan(r3['sleep_lag1']) and np.isnan(r3['bedtime_lag1']) and np.isnan(r3['waketime_lag1'])
+    assert np.isnan(r4['sleep_lag2']) and r4['sleep_lag1'] == 450 and r4['sleep_lag3'] == 450
+    assert data.info['lag_nights_masked_invalid_sleep'] == 2

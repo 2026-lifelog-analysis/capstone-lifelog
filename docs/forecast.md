@@ -1,4 +1,4 @@
-# 오늘 밤 수면 예측: 공통 실험 기반 (데이터 프로토콜 v2)
+# 오늘 밤 수면 예측: 공통 실험 기반 (데이터 프로토콜 v3)
 
 팀원들이 **같은 데이터, 같은 참가자 분할, 같은 평가 밤, 같은 채점 함수**로 개선안을 비교할 수 있게 만든 공통 코드다.
 팀원별 개선 실험(최근 수면 이탈, 개인+집단 기준선 결합, 마지막 기록 이후 일수 등)은 여기에 들어 있지 않다. 각자 이 기반 위에서 추가한다.
@@ -89,6 +89,25 @@
 - 실제 데이터: 겹치는 쌍 59개, 조각 118개, 46명. 포함 48쌍(그중 같은 시작 46쌍), 부분 겹침 11쌍, 같은 구간 다른 값 0쌍, 완전 중복 0줄, 맞닿음 0쌍. 모든 쌍이 같은 밤 안에 있다. 겹친 길이는 26~476.5분(중앙값 101분)이다. 59쌍 중 51쌍은 두 조각의 `minsasleep` 합이 두 조각이 차지한 전체 시간보다 길어서, 그대로 더하면 이중 계산이 확실하다.
 - 결과: 정답에서 59밤(46명)이 빠지고, 과거 입력 칸 358개(줄 × k)가 NaN이 된다.
 
+### 2.4 수면시간(`minsasleep`) 결측·무효값 처리 (v3)
+
+조각마다 `minsasleep`을 검사한다(`fd.asleep_check`). 시각을 복원할 수 있는 조각은 값이 무효여도 조각 자체는 남긴다. 그 조각이 어느 밤에 속하는지 알아야 그 밤을 제외할 수 있기 때문이다.
+
+| 종류 (`ASLEEP_ISSUES`) | 조건 |
+| --- | --- |
+| `missing` | 빈칸 |
+| `non_numeric` | 숫자로 읽히지 않음 |
+| `nonfinite` | ±inf |
+| `negative` | 0 미만 |
+| `exceeds_bedtimedur` | 그 조각의 `bedtimedur`(코드북: 누워 있던 분)보다 큼 |
+
+- 상한은 `bedtimedur`다. `bedtimedur`는 이미 시계 차이 + 1분과 `CLOCK_TOL`(1분) 안에서 맞는지 검사된 값이다. 의학적 기준은 쓰지 않는다.
+- **0분은 정상 값**이고 결측과 다르게 취급한다. `bedtimedur`와 같은 값도 정상이다.
+- 무효 값은 0으로 채우지 않는다. 무효 조각이 있는 덩어리의 합은 NaN이다. 일부 유효 조각만 더한 합을 정답으로 만들지 않는다.
+- 무효 조각이 하나라도 있는 밤은 통째로 `invalid_sleep_value`로 처리한다. 정답에서 빠지고, 다음 밤들의 `*_lag` 입력에서도 세 값 모두 NaN이 된다(0분 수면으로 쓰지 않음). 무효 조각만 빼고 다른 덩어리를 주수면으로 고르지 않는다. 그 조각이 원래 주수면 선택을 바꿀 수 있기 때문이다.
+- 요약(`info['invalid_sleep']`, `--check` 출력)에 종류별 조각 수, 제외된 밤 수, 참가자 수가 남는다.
+- 실제 데이터: 무효 조각 0개, 제외된 밤 0개(`minsasleep`은 모두 1~1295의 정수이고 `bedtimedur` 이하). 예측 표와 데이터 지문은 v2와 같다.
+
 ## 3. 밤과 주수면 만들기
 
 1. **조각 시각 복원** (`sleep_episodes`): 가정 A1. 제외 사유와 건수는 `info['dropped_episodes']`에 남는다. 사유는 종료·시작 시각 없음/형식 오류, `bedtimedur` ≥ 24시간, 시계 차이 불일치, 완전 중복이다. 실제 파일에서는 종료 시각이 빈 2줄만 빠진다.
@@ -98,15 +117,17 @@
 5. **주수면** (`night_summary`): 덩어리 중 `minsasleep` 합이 가장 큰 것을 고른다. 같으면 **먼저 시작한** 덩어리를 고른다.
 6. **시작 전 예측 대상만** (`build_forecast_table`): 밤마다 사유를 하나 붙이며, 앞의 사유가 우선한다.
    - `no_sleep_record`: 그 밤에 시작한 조각이 없음
+   - `invalid_sleep_value`: `minsasleep` 결측·무효 조각이 있는 밤 (2.4)
    - `overlap_conflict`: 겹침 밤
    - `started_before_forecast`: 주수면이 D 18:00 전에 시작함
    - `ok`: 나머지
 
-실제 데이터(프로토콜 v2, 전체 기간): 후보는 622명의 455,978밤이다.
+실제 데이터(프로토콜 v3, 전체 기간): 후보는 622명의 455,978밤이다.
 
 | 사유 | 밤 수 | 비율 |
 | --- | --- | --- |
 | `ok` | 294,243 | 64.5% |
+| `invalid_sleep_value` | 0 | 0% |
 | `overlap_conflict` | 59 | 0.01% |
 | `started_before_forecast` | 3,127 | 0.7% |
 | `no_sleep_record` | 158,549 | 34.8% |
@@ -147,7 +168,12 @@ def my_feat(data):                     # data = ForecastData
 table = fd.add_features(data, my_feat)        # 새 표 (data.table은 그대로)
 ```
 - 함수는 `data.table`과 같은 index의 DataFrame을 돌려준다. 이름이 겹치거나 `target_`으로 시작하면 오류가 난다.
-- 각 줄의 `forecast_at` 이전에 확정된 기록만 써야 한다. 더 긴 과거가 필요하면 `data.nights`에서 `known_at <= forecast_at`이고 `overlap == False`인 밤만 쓴다.
+- 각 줄의 `forecast_at` 이전에 확정된 기록만 써야 한다. 더 긴 과거가 필요하면 `data.nights`에서 `known_at <= forecast_at`이고 `overlap == False`, `asleep_invalid == False`인 밤만 쓴다.
+- **공통 열 보호**:
+  - 특징 함수에는 `data`의 표 복사본이 넘어간다. 함수가 넘겨받은 `table`을 직접 고치면 오류가 나고, 원본 `data`는 그대로 남는다. 새 열은 반환값으로만 준다.
+  - `fr.run(..., table=...)`은 학습 전에 `fd.check_common_columns(data.table, table)`로 검사한다. 원래 열이 모두 있고, 같은 행 순서에서 같은 값이어야 한다. 대상은 키, 예측 시각, 세 정답, 정답 보조 열, 기본 입력을 포함한 모든 원래 열이다.
+  - 원래 열을 바꾸거나, 지우거나, 행을 빼거나 순서를 바꾸거나, 열 이름이 중복되면 오류가 나고 결과도 저장하지 않는다. 같은 위치의 NaN은 같은 결측으로 보고, 같은 값의 정수·실수 표현 차이는 허용한다. 추가 열만 허용한다.
+  - `data.table` 자체가 분할표를 만들 때의 데이터 지문과 달라져도 오류가 난다. 원래 지문을 기록한 채 바뀐 데이터로 돌리지 않는다. 추가된 열 이름은 `run_meta.json`의 `extra_columns`에 남는다.
 - 검증·최종 평가 참가자의 과거 수면을 그 사람의 입력으로 쓰는 것은 허용된다. 그 사람을 **학습 데이터**에 넣는 것과는 다르다.
 - 집단 통계, 결측 대체값, 스케일러처럼 데이터로 맞춰야 하는 값은 `add_features`에서 만들지 말고 모델의 `fit(train, ...)` 안에서 학습 참가자로만 맞춘다.
 - `fd.feat_steps_lags`는 예시다(D−1 ~ D−7 하루 걸음 수).
@@ -162,7 +188,7 @@ table = fd.add_features(data, my_feat)        # 새 표 (data.table은 그대로
 4. 나머지(`role='dev'`)는 섞은 순서에서 i번째 사람이 `fold = (i mod 5) + 1`이 된다. fold 1~5이고 크기 차이는 최대 1명이다.
 
 매회 학습 = 개발 중 4 fold(전체의 약 **68%**), 검증 = 1 fold(약 **17%**), 최종 평가 약 **15%**는 쓰지 않는다. 70/15/15 분할도, 다섯 번 독립 랜덤 분할도 아니다.
-실제 데이터 v2: 621명 = 최종 평가 93 + 개발 528(fold 106/106/106/105/105).
+실제 데이터 v3: 621명 = 최종 평가 93 + 개발 528(fold 106/106/106/105/105).
 
 - 한 참가자의 모든 밤은 같은 역할에 속한다. 각 개발 참가자는 다섯 번 중 정확히 한 번 검증된다.
 - 세 목표와 모든 팀원 실험이 **같은 분할표**를 쓴다. 목표마다 정답 없는 밤을 빼도 분할표를 다시 만들지 않는다.
@@ -175,9 +201,12 @@ table = fd.add_features(data, my_feat)        # 새 표 (data.table은 그대로
 | 버전 | 내용 | 결과 위치 |
 | --- | --- | --- |
 | v1 | 1차 구현. 겹침 조각을 그대로 합산 | `results/forecast/split.csv`, `results/forecast/runs/` (점검용. 최종 수치로 쓰지 않음) |
-| **v2** | 겹침 밤 제외, 완전 중복 = (시작, 종료, `minsasleep`) | `results/forecast/v2/` |
+| v2 | 겹침 밤 제외, 완전 중복 = (시작, 종료, `minsasleep`) | `results/forecast/v2/` |
+| **v3** | v2 + `minsasleep` 결측·무효 조각이 있는 밤 제외 (2.4) | `results/forecast/v3/` |
 
-v1에서 v2로 바뀌어도 참가자 목록(621명)은 같았다. 그래서 분할표 내용과 `split_sha256`(`de80b681…`)은 같고, 데이터 지문만 바뀌었다(`d5a8fa88…` → `736ccdaa…`). v1 결과 파일은 지우거나 덮어쓰지 않았다.
+v1에서 v2로 바뀌어도 참가자 목록(621명)은 같았다. 그래서 분할표 내용과 `split_sha256`(`de80b681…`)은 같고, 데이터 지문만 바뀌었다(`d5a8fa88…` → `736ccdaa…`). v2에서 v3로 바뀔 때는 실제 데이터에 무효 조각이 없어 예측 표가 같다. 데이터 지문(`736ccdaa…`), 분할표, 최종 평가 93명이 모두 그대로다. 이전 버전 결과 파일은 지우거나 덮어쓰지 않았다.
+
+새 버전의 분할표를 처음 만들 때는 이전 버전(`fd.PREVIOUS_PROTOCOL`) 분할표와 최종 평가 참가자를 비교한다. 다르면 저장하지 않고 `SplitMismatch` 오류를 낸다. 최종 평가 목록을 조용히 다시 뽑지 않으며, 같으면 manifest에 `previous_split_sha256`, `same_final_as_previous`를 남긴다. 참가자 목록이 바뀌어 최종 평가 목록이 달라질 때의 처리 방법은 팀에서 정한 뒤 `--rebuild-split`으로 만든다.
 
 ## 6. 채점
 
@@ -226,14 +255,14 @@ pip install -r requirements.txt
 python -m src.forecast_run --synthetic --check     # 가짜 데이터: 데이터·분할 생성만 확인
 python -m src.forecast_run --synthetic             # 가짜 데이터: 전체 흐름 (숫자는 실제 성능 아님)
 python -m src.forecast_run --diagnose              # 실제 데이터: dataDate 해석 진단 (2.2)
-python -m src.forecast_run --check                 # 실제 데이터: 예측 표 요약 + v2 분할표 생성/검사
+python -m src.forecast_run --check                 # 실제 데이터: 예측 표 요약 + v3 분할표 생성/검사
 python -m src.forecast_run --name base             # 실제 데이터: group_median, personal_mean7, ridge_base
 python -m src.forecast_run --experiments catboost_base --baseline catboost_base --name cb   # CatBoost 기본
 python -m src.forecast_run --experiments catboost_base ridge_base --baseline catboost_base --targets sleep
 pytest                                             # 전체 테스트 (실제 데이터 필요 없음)
 ```
 
-결과는 `results/forecast/v2/`에, 가짜 데이터는 `results/forecast_synthetic/v2/`에 저장된다. 모두 커밋하지 않는다.
+결과는 `results/forecast/v3/`에, 가짜 데이터는 `results/forecast_synthetic/v3/`에 저장된다. 모두 커밋하지 않는다.
 
 | 파일 | 내용 |
 | --- | --- |
@@ -251,7 +280,7 @@ pytest                                             # 전체 테스트 (실제 �
 from src import forecast_dataset as fd, forecast_eval as fe, forecast_run as fr
 import pandas as pd
 
-data, split, man, out = fr.prepare()                 # 공통 데이터 + 저장된 v2 분할표 (검사 포함)
+data, split, man, out = fr.prepare()                 # 공통 데이터 + 저장된 v3 분할표 (검사 포함)
 
 def my_feat(data):                                   # 예측 시점 이전 정보만
     lags = data.table[[f'sleep_lag{k}' for k in range(1, 8)]]

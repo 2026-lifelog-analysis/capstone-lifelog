@@ -173,6 +173,7 @@ ev.results_table(res)
 - **이상 탐지 하루 표와 다름**: 하루 표 `sleep_min`은 그날 조각 **모두** 합(낮잠 포함), 예측 정답은 **주수면 하나**. 예측에는 42일 필터를 적용하지 않음 (기록 적은 사람·초기 밤도 입력 NaN으로 남김)
 - **채택한 가정**: 원본 `dataDate`는 코드북에 뜻이 없음("unlabeled"). 같은 사람 조각끼리의 겹침 비율(종료일 가정 0.018% vs 시작일 가정 8.1%)을 근거로 **종료일**로 봄. 시간대·서머타임 변환은 안 함(확인 못 함). `python -m src.forecast_run --diagnose`로 다시 확인 가능
 - **겹치는 조각**: 완전 중복(시작·종료·`minsasleep` 같음)은 하나만 남김. 시간이 겹치는 서로 다른 기록(포함·부분 겹침)이 있는 밤은 겹친 시간에 몇 분 잤는지 알 수 없어 **정답·과거 입력에서 통째로 제외** (실제 59밤/46명). 맞닿기만 한 조각은 겹침 아님
+- **수면시간 결측·무효**: 조각의 `minsasleep`이 빈칸·숫자 아님·±inf·음수·그 조각 `bedtimedur` 초과이면, 그 조각이 있는 밤을 **정답·과거 입력에서 통째로 제외**함. 0으로 채우거나 일부 조각만 더하거나 다른 덩어리를 주수면으로 고르지 않음. 0분은 정상 값 (실제 데이터는 해당 0건)
 - 주수면이 18시 전에 시작한 밤은 '시작 전 예측' 대상에서 빼고 개수를 출력함. 정답 없는 밤은 채우지 않음
 - 빠진 밤은 NaN 유지(최근 기록 7개를 당겨 오지 않음), 당일 하루 집계(걸음·심박·착용률)는 안 넣음
 - 세 목표는 **따로** 채점함 (평균 내서 하나로 합치지 않음)
@@ -181,7 +182,7 @@ ev.results_table(res)
 - 참가자 ID를 문자열로 바꾸고 정렬한 뒤 시드 0으로 섞음. `floor(n × 0.15 + 0.5)`명을 **최종 평가**로 한 번 떼어 놓고, 나머지를 섞은 순서대로 fold 1~5에 돌아가며 배정
 - 매회 학습 4 fold / 검증 1 fold → 전체 기준 **약 68% / 17% / 15%** (70/15/15 아님, 독립 랜덤 분할 다섯 번 아님)
 - 한 사람의 모든 밤은 같은 역할. 개발 참가자는 다섯 번 중 정확히 한 번 검증됨. 세 목표·모든 팀원 실험이 같은 분할표를 씀
-- 분할표 `results/forecast/v2/split.csv`(원본 ID 포함, **커밋 안 함**). 데이터 규칙 버전(`fd.PROTOCOL`)별 폴더. 다시 돌리면 저장된 것을 읽고 검사함 (다르면 오류, 조용히 다시 만들지 않음)
+- 분할표 `results/forecast/v3/split.csv`(원본 ID 포함, **커밋 안 함**). 데이터 규칙 버전(`fd.PROTOCOL`)별 폴더. 다시 돌리면 저장된 것을 읽고 검사함 (다르면 오류, 조용히 다시 만들지 않음). 새 버전 분할표를 만들 때 이전 버전과 최종 평가 참가자가 다르면 저장하지 않고 오류
 - 팀원끼리 같은지는 `split_manifest.json`의 `split_sha256`, `data_fingerprint`로 비교 (`--check`가 출력)
 
 ### 채점
@@ -200,7 +201,7 @@ python -m src.forecast_run --name base             # 기본 실험 3개 (group_m
 python -m src.forecast_run --experiments catboost_base --baseline catboost_base --name cb   # CatBoost 기본 실험
 pytest                                             # 전체 테스트 (실제 데이터 필요 없음)
 ```
-기본 실행은 개발 참가자 5-fold만 돌리고 최종 평가는 하지 않음. 결과는 `results/forecast/v2/runs/<시각>-<이름>/`(가짜 데이터면 `results/forecast_synthetic/v2/`)에 저장: `scores.csv`, `summary.csv`, `compare.csv`, `predictions.csv`(pid·밤·목표·fold별 예측), `run_meta.json`(커밋, 시드, 설정, 데이터 지문, 분할 해시). `results/`는 `.gitignore`라 커밋 안 됨
+기본 실행은 개발 참가자 5-fold만 돌리고 최종 평가는 하지 않음. 결과는 `results/forecast/v3/runs/<시각>-<이름>/`(가짜 데이터면 `results/forecast_synthetic/v3/`)에 저장: `scores.csv`, `summary.csv`, `compare.csv`, `predictions.csv`(pid·밤·목표·fold별 예측), `run_meta.json`(커밋, 시드, 설정, 데이터 지문, 분할 해시). `results/`는 `.gitignore`라 커밋 안 됨
 
 CatBoost 기본(`catboost_base`): 결측은 채우지 않음(`nan_mode='Min'`), `dow`는 범주형(CatBoost 안에서 원-핫), `random_seed=0`, 목표·fold마다 새 모델, 검증 데이터는 조기 종료 등에 쓰지 않음. 설정은 `fe.CATBOOST_PARAMS`(튜닝 안 함)
 
@@ -213,6 +214,7 @@ exps = [fe.EXPERIMENTS['catboost_base'],
         fe.Experiment('catboost_mine', fe.CatBoostModel, lambda t: fd.base_features(t) + ['my_col'])]
 fr.run(data, split, man, out, experiments=exps, table=table, baseline='catboost_base', name='mine')
 ```
+공통 열 보호: `fd.add_features`의 특징 함수는 표 복사본을 받고, 받은 표를 직접 고치면 오류(원본은 그대로). `fr.run(..., table=...)`은 학습 전에 원래 열(키·예측 시각·정답·정답 보조 열·기본 입력)이 모두 같은 순서·같은 값인지 검사하고, 바뀌거나 빠지거나 행·열이 어긋나면 오류를 내며 결과를 저장하지 않음 (같은 위치 NaN은 같은 결측, 추가 열만 허용). `data.table`이 분할표의 데이터 지문과 달라도 오류
 
 ### 팀원 작업 순서
 1. 진행 중인 작업 보존: `git status`로 확인하고, 변경이 있으면 내 브랜치에 커밋하거나 `git stash`

@@ -23,6 +23,8 @@ forecast_dataset.py — '오늘 밤 수면 예측' 공통 데이터 (참가자 �
                       (코드북에 정의 없음. date_assumption_check로 재현 가능한 진단 근거, docs/forecast.md)
                       시각은 원본 표기 그대로 쓰고 시간대 변환은 하지 않는다.
                       완전 중복(같은 사람·시작·종료·minsasleep)은 하나만 남김
+                      minsasleep 검사(asleep_check): 결측·숫자 아님·inf·음수·bedtimedur 초과 → NaN 표시
+                      (그 조각이 있는 밤은 5단계에서 통째로 제외. 0으로 채우지 않음)
   2. overlap_flags  : 같은 사람의 다른 조각과 시간이 겹치는 조각 표시 (맞닿기만 한 것은 겹침 아님)
   3. assign_nights  : 조각의 시작이 [D 12:00, D+1 12:00)에 있으면 밤 D. 한 조각은 한 밤에만 들어간다.
                       종료가 다음 정오를 넘어도 자르지 않는다.
@@ -40,7 +42,7 @@ forecast_dataset.py — '오늘 밤 수면 예측' 공통 데이터 (참가자 �
   예측일 D 당일의 하루 집계(걸음, 평균 심박, 착용률)는 18시에 확정되지 않으므로 넣지 않는다.
 """
 import hashlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 import pandas as pd
@@ -50,7 +52,9 @@ from . import preprocessing as pp
 # 공통 데이터 규칙 버전. 정답·입력 규칙이 바뀌면 올림 (분할표·결과 폴더가 버전별로 나뉨)
 #   v1: 1차 구현 (겹침 조각 그대로 합산) — 점검용, 결과를 최종 수치로 쓰지 않음
 #   v2: 겹침 조각이 있는 밤 제외, 완전 중복 정의를 (시작, 종료, minsasleep)로
-PROTOCOL = 'v2'
+#   v3: minsasleep이 결측·무효인 조각이 있는 밤 제외 (0으로 채우거나 일부 조각만 더하지 않음)
+PROTOCOL = 'v3'
+PREVIOUS_PROTOCOL = 'v2'   # 새 분할표를 만들 때 최종 평가 참가자가 이 버전과 같은지 확인
 
 # ---------- 설정 (팀 실험용 약속. 의료적 기준이 아님) ----------
 FORECAST_HOUR = 18          # 예측 기준 시각: 밤 D의 날짜 D 18:00
@@ -80,8 +84,16 @@ DROP_REASONS = {
     'clock_mismatch': '시계 차이와 bedtimedur가 맞지 않음',
     'duplicate': '완전 중복 (같은 사람·시작·종료·minsasleep 조각이 이미 있음)',
 }
+ASLEEP_ISSUES = {
+    'missing': 'minsasleep 빈칸',
+    'non_numeric': 'minsasleep이 숫자로 읽히지 않음',
+    'nonfinite': 'minsasleep이 ±inf',
+    'negative': 'minsasleep이 음수',
+    'exceeds_bedtimedur': 'minsasleep이 그 조각의 bedtimedur(누워 있던 분)보다 큼',
+}
 NIGHT_REASONS = {
     'ok': '유효 (주수면이 예측 기준 시각 이후 시작)',
+    'invalid_sleep_value': 'minsasleep이 결측·무효인 조각이 있는 밤 → 주수면 선택·총수면을 알 수 없어 정답·입력에서 제외',
     'overlap_conflict': '겹치는 조각이 있는 밤 → 총수면 중복 계산 위험이라 정답·입력에서 제외',
     'started_before_forecast': '주수면이 예측 기준 시각 전에 시작 → 시작 전 예측 대상 아님',
     'no_sleep_record': '그 밤에 시작한 수면 조각 없음 (정답 없음, 채우지 않음)',
@@ -116,6 +128,23 @@ def _times(S, tol=CLOCK_TOL):
     return date, t_in, t_out, clock, reason
 
 
+def asleep_check(raw, bedtimedur):
+    """
+    minsasleep 검사. 반환: (숫자 값 Series(무효면 NaN), 문제 종류 Series('' = 정상))
+      정상: 숫자로 읽히고, 유한하고, 0 이상이고, 그 조각의 bedtimedur 이하 (0분도 정상 값)
+      상한을 bedtimedur로 둔 이유: 코드북상 '누워 있던 분'이고, bedtimedur는 이미 시계 차이 + 1분과
+      CLOCK_TOL 안에서 맞는지 검사됨. 의학적 기준은 쓰지 않음
+    """
+    num = pd.to_numeric(raw, errors='coerce').astype(float)
+    bed = pd.to_numeric(bedtimedur, errors='coerce').astype(float)
+    with np.errstate(invalid='ignore'):
+        issue = np.select([raw.isna().to_numpy(), num.isna().to_numpy(), ~np.isfinite(num.to_numpy()),
+                           (num < 0).to_numpy(), (num > bed).to_numpy()],
+                          list(ASLEEP_ISSUES), '')
+    issue = pd.Series(issue, index=raw.index, dtype=object)
+    return num.where(issue == ''), issue
+
+
 def sleep_episodes(S, tol=CLOCK_TOL):
     """
     수면 원본 → 조각별 시작·종료 datetime (dataDate = 종료일 가정).
@@ -123,17 +152,20 @@ def sleep_episodes(S, tol=CLOCK_TOL):
       start = end - ((timeoutofbed - timetobed) mod 24시간)
     (시계 차이 = bedtimedur - 1분인지로 기록을 검사함)
     반환: (ep, dropped)
-      ep      : pid | end_date | start | end | minsasleep | bedtimedur
+      ep      : pid | end_date | start | end | minsasleep | asleep_issue | bedtimedur
+                (시각을 복원할 수 있으면 minsasleep이 무효여도 조각은 남김. 그 밤을 통째로 제외하기 위해)
       dropped : {사유: 건수} (DROP_REASONS 순서, 0건 포함)
     """
     end_date, t_in, t_out, clock, reason = _times(S, tol)
     ok = reason.isna()
     end = end_date[ok] + pd.to_timedelta(t_out[ok], unit='min')
+    asleep, issue = asleep_check(S.loc[ok, 'minsasleep'], S.loc[ok, 'bedtimedur'])
     ep = pd.DataFrame({'pid': S.loc[ok, 'egoid'].astype(str),
                        'end_date': end_date[ok],
                        'start': end - pd.to_timedelta(clock[ok], unit='min'),
                        'end': end,
-                       'minsasleep': S.loc[ok, 'minsasleep'],
+                       'minsasleep': asleep,                 # 무효면 NaN (0으로 채우지 않음)
+                       'asleep_issue': issue,                # '' = 정상, 아니면 ASLEEP_ISSUES 키
                        'bedtimedur': S.loc[ok, 'bedtimedur']})
     dup = ep.duplicated(['pid', 'start', 'end', 'minsasleep'], keep='first')   # 파일에서 먼저 나온 줄을 남김
     reason.loc[dup[dup].index] = 'duplicate'
@@ -229,7 +261,8 @@ def sleep_blocks(ep, gap=SLEEP_GAP):
     시작 순으로 놓고, 그때까지 나온 조각들의 가장 늦은 종료에서 gap분 넘게 지나 시작하면 새 덩어리.
     (이상 탐지 pp.merge_sleep와 같은 90분 규칙. 다만 merge_sleep는 dataDate(종료일) 안에서
      시계 분으로 묶으므로, 자정을 사이에 둔 조각이 다른 날로 갈라질 수 있어 예측에서는 datetime으로 묶음)
-    반환: pid | date | block | start | end | sleep_min | n_pieces
+    minsasleep이 NaN(결측·무효)인 조각이 하나라도 있는 덩어리는 sleep_min = NaN (0으로 더하지 않음).
+    반환: pid | date | block | start | end | sleep_min | n_pieces | n_invalid
     """
     e = ep.sort_values(['pid', 'date', 'start', 'end'], kind='stable').reset_index(drop=True)
     keys = [e['pid'], e['date']]
@@ -237,10 +270,14 @@ def sleep_blocks(ep, gap=SLEEP_GAP):
     prev_end = run_end.groupby(keys).shift()
     new = prev_end.isna() | ((e['start'] - prev_end) > pd.Timedelta(minutes=gap))
     e['block'] = new.cumsum()
-    return (e.groupby('block')
-             .agg(pid=('pid', 'first'), date=('date', 'first'), start=('start', 'min'),
-                  end=('end', 'max'), sleep_min=('minsasleep', 'sum'), n_pieces=('minsasleep', 'size'))
-             .reset_index())
+    e['_bad'] = pd.to_numeric(e['minsasleep'], errors='coerce').isna()
+    b = (e.groupby('block')
+          .agg(pid=('pid', 'first'), date=('date', 'first'), start=('start', 'min'),
+               end=('end', 'max'), sleep_min=('minsasleep', 'sum'), n_pieces=('minsasleep', 'size'),
+               n_invalid=('_bad', 'sum'))
+          .reset_index())
+    b['sleep_min'] = b['sleep_min'].where(b['n_invalid'] == 0)    # 일부 조각만 더한 합을 만들지 않음
+    return b
 
 
 def night_summary(ep, gap=SLEEP_GAP, night_start_hour=NIGHT_START_HOUR):
@@ -249,6 +286,8 @@ def night_summary(ep, gap=SLEEP_GAP, night_start_hour=NIGHT_START_HOUR):
     반환: pid | date | sleep_min | bedtime | waketime | bed_at | wake_at | n_pieces | n_blocks | known_at | overlap
       bedtime, waketime : 그 밤 D 12:00부터 분 (나머지 연산 없음)
       known_at          : 그 밤에 시작한 모든 조각 중 가장 늦은 종료. 이 시각이 지나야 그 밤 기록이 확정
+      asleep_invalid    : 그 밤의 조각 중 하나라도 minsasleep이 결측·무효 → 정답·입력으로 쓰지 않음
+                          (무효 조각만 빼고 다른 덩어리를 주수면으로 고르지 않음. 그 조각이 선택을 바꿀 수 있음)
       overlap           : 그 밤의 조각 중 하나라도 다른 조각과 겹침 → 정답·입력으로 쓰지 않음
                           (주수면 값은 확인용으로 계산만 해 둠. 겹친 조각만 빼서 다른 주수면을 고르지 않음)
     """
@@ -260,13 +299,14 @@ def night_summary(ep, gap=SLEEP_GAP, night_start_hour=NIGHT_START_HOUR):
     g = b.groupby(['pid', 'date'])
     extra = pd.DataFrame({'n_blocks': g.size(), 'known_at': g['end'].max()}).reset_index()
     ov = ep.groupby(['pid', 'date'])['overlap'].any().reset_index()
-    n = main.merge(extra, on=['pid', 'date']).merge(ov, on=['pid', 'date'])
+    inv = (b.groupby(['pid', 'date'])['n_invalid'].sum() > 0).rename('asleep_invalid').reset_index()
+    n = main.merge(extra, on=['pid', 'date']).merge(ov, on=['pid', 'date']).merge(inv, on=['pid', 'date'])
     noon = n['date'] + pd.Timedelta(hours=night_start_hour)
     n['bedtime'] = (n['start'] - noon) / pd.Timedelta(minutes=1)
     n['waketime'] = (n['end'] - noon) / pd.Timedelta(minutes=1)
     n = n.rename(columns={'start': 'bed_at', 'end': 'wake_at'})
     return (n[['pid', 'date', 'sleep_min', 'bedtime', 'waketime', 'bed_at', 'wake_at',
-               'n_pieces', 'n_blocks', 'known_at', 'overlap']]
+               'n_pieces', 'n_blocks', 'known_at', 'overlap', 'asleep_invalid']]
             .sort_values(['pid', 'date']).reset_index(drop=True))
 
 
@@ -274,23 +314,25 @@ def lag_features(base, nights, n_lags=N_LAGS):
     """
     base(pid, date, forecast_at)에 밤 D-k (k=1..n_lags) 값을 붙임. 달력 날짜로 맞추므로 빠진 밤은 NaN.
       - 밤 D-k의 known_at이 forecast_at보다 늦으면(아직 안 끝난 조각이 있으면) 세 값 모두 NaN
-      - 밤 D-k가 겹침 밤(overlap)이면 세 값 모두 NaN
-    반환: (새 열 표, {'not_known_yet': (줄, k) 수, 'overlap': (줄, k) 수})
+      - 밤 D-k가 minsasleep 결측·무효 밤(asleep_invalid)이나 겹침 밤(overlap)이면 세 값 모두 NaN (0분으로 쓰지 않음)
+    반환: (새 열 표, {'not_known_yet', 'invalid_sleep', 'overlap': (줄, k) 수})
     """
     out = pd.DataFrame(index=base.index)
-    masked = {'not_known_yet': 0, 'overlap': 0}
+    masked = {'not_known_yet': 0, 'invalid_sleep': 0, 'overlap': 0}
     vals = ['sleep_min', 'bedtime', 'waketime']
     for k in range(1, n_lags + 1):
-        lag = nights[['pid', 'date', 'known_at', 'overlap'] + vals].copy()
+        lag = nights[['pid', 'date', 'known_at', 'asleep_invalid', 'overlap'] + vals].copy()
         lag['date'] = lag['date'] + pd.Timedelta(days=k)
         m = base[['pid', 'date', 'forecast_at']].merge(lag, on=['pid', 'date'], how='left')
         m.index = base.index
         late = m['known_at'].notna() & (m['known_at'] > m['forecast_at'])
-        ov = m['overlap'].fillna(False).astype(bool) & ~late
+        inv = m['asleep_invalid'].fillna(False).astype(bool) & ~late
+        ov = m['overlap'].fillna(False).astype(bool) & ~late & ~inv
         masked['not_known_yet'] += int(late.sum())
+        masked['invalid_sleep'] += int(inv.sum())
         masked['overlap'] += int(ov.sum())
         for t, v in NIGHT_VALUE.items():
-            out[f'{LAG_PREFIX[t]}_lag{k}'] = m[v].where(~late & ~ov)
+            out[f'{LAG_PREFIX[t]}_lag{k}'] = m[v].where(~late & ~inv & ~ov)
     return out, masked
 
 
@@ -343,9 +385,11 @@ def build_forecast_table(S, A=None, forecast_hour=FORECAST_HOUR, n_lags=N_LAGS, 
     cand = cand.merge(nights, on=['pid', 'date'], how='left')
     cand['forecast_at'] = cand['date'] + pd.Timedelta(hours=forecast_hour)
     cand['reason'] = np.select([cand['bed_at'].isna(),
+                                cand['asleep_invalid'].fillna(False).astype(bool),
                                 cand['overlap'].fillna(False).astype(bool),
                                 cand['bed_at'] < cand['forecast_at']],
-                               ['no_sleep_record', 'overlap_conflict', 'started_before_forecast'], 'ok')
+                               ['no_sleep_record', 'invalid_sleep_value', 'overlap_conflict',
+                                'started_before_forecast'], 'ok')
     cand = cand.reset_index(drop=True)
 
     t = cand[cand['reason'] == 'ok'].reset_index(drop=True)
@@ -360,6 +404,7 @@ def build_forecast_table(S, A=None, forecast_hour=FORECAST_HOUR, n_lags=N_LAGS, 
     table = table.sort_values(KEY_COLS).reset_index(drop=True)
 
     ov_n = cand[cand['reason'] == 'overlap_conflict']
+    inv_n = cand[cand['reason'] == 'invalid_sleep_value']
     sl = [f'sleep_lag{k}' for k in range(1, n_lags + 1)]
     settings = {'protocol': PROTOCOL, 'forecast_hour': forecast_hour, 'night_start_hour': night_start_hour,
                 'n_lags': n_lags, 'sleep_gap': gap, 'min_nights': min_nights, 'period': period,
@@ -375,6 +420,10 @@ def build_forecast_table(S, A=None, forecast_hour=FORECAST_HOUR, n_lags=N_LAGS, 
                     'nights_excluded': int(len(ov_n)), 'people_with_excluded_nights': int(ov_n['pid'].nunique()),
                     'overlap_min': pairs['overlap_min'].describe()[['min', '50%', 'max']].round(1).to_dict()
                     if len(pairs) else {}},
+        'invalid_sleep': {'pieces_by_issue': ep['asleep_issue'].value_counts()
+                                                .reindex(list(ASLEEP_ISSUES), fill_value=0).astype(int).to_dict(),
+                          'nights_excluded': int(len(inv_n)),
+                          'people_with_excluded_nights': int(inv_n['pid'].nunique())},
         'people_candidates': n_people_before_filter,
         'people_after_min_nights': int(cand['pid'].nunique()),
         'nights_candidates': int(len(cand)),
@@ -383,6 +432,7 @@ def build_forecast_table(S, A=None, forecast_hour=FORECAST_HOUR, n_lags=N_LAGS, 
         'people_table': int(table['pid'].nunique()), 'nights_table': int(len(table)),
         'lag_nights_masked_not_known_yet': masked['not_known_yet'],
         'lag_nights_masked_overlap': masked['overlap'],
+        'lag_nights_masked_invalid_sleep': masked['invalid_sleep'],
         'nights_no_sleep_input': int(table[sl].isna().all(axis=1).sum()),
         'sleep_input_missing_rate': float(table[sl].isna().to_numpy().mean()) if len(table) else np.nan,
         # 분모 = 예측 표의 밤 (정답 있는 '시작 전 예측' 밤). 분자 = 주수면 취침이 다음 날 00:00 이후
@@ -434,18 +484,75 @@ def check_features(cols, table=None):
     return cols
 
 
+def _same_values(a, b):
+    """두 열이 같은 위치에서 같은 값인지. 같은 위치의 NaN/NaT는 같은 결측. 정수·실수 표현 차이는 무시."""
+    a_dt = pd.api.types.is_datetime64_any_dtype(a)
+    b_dt = pd.api.types.is_datetime64_any_dtype(b)
+    if a_dt or b_dt:
+        if not (a_dt and b_dt):
+            return False
+        x, y = pd.to_datetime(a).to_numpy(), pd.to_datetime(b).to_numpy()
+        na_x, na_y = pd.isna(x), pd.isna(y)
+        return bool((na_x == na_y).all() and (x[~na_x] == y[~na_y]).all())
+    a_num = pd.api.types.is_numeric_dtype(a) and not pd.api.types.is_bool_dtype(a)
+    b_num = pd.api.types.is_numeric_dtype(b) and not pd.api.types.is_bool_dtype(b)
+    if a_num or b_num:
+        if not (a_num and b_num):
+            return False
+        return bool(np.array_equal(a.to_numpy(dtype=float), b.to_numpy(dtype=float), equal_nan=True))
+    na_a, na_b = a.isna().to_numpy(), b.isna().to_numpy()
+    if not (na_a == na_b).all():
+        return False
+    return bool((a.astype(str).to_numpy()[~na_a] == b.astype(str).to_numpy()[~na_b]).all())
+
+
+def check_common_columns(base, table, who='table'):
+    """
+    table이 공통 예측 표 base의 모든 열을 같은 행 순서·같은 값으로 갖고 있는지 검사 (추가 열만 허용).
+    검사: base·table의 중복 열 이름, base의 (pid, date) 중복, 열 삭제, 행 수·순서, 값 변경
+    (키·예측 시각·정답·정답 보조 열·기본 입력 등 base의 모든 열). 같은 위치의 NaN은 같은 결측.
+    문제가 있으면 ValueError, 없으면 추가된 열 이름 목록을 돌려줌.
+    """
+    if base.columns.duplicated().any():
+        raise ValueError(f'공통 예측 표에 중복 열 이름: {list(base.columns[base.columns.duplicated()])}')
+    if base.duplicated(KEY_COLS).any():
+        raise ValueError('공통 예측 표에 (pid, date) 중복이 있음')
+    if table.columns.duplicated().any():
+        raise ValueError(f'{who}에 중복 열 이름: {list(table.columns[table.columns.duplicated()])}')
+    missing = [c for c in base.columns if c not in table.columns]
+    if missing:
+        raise ValueError(f'{who}에서 공통 열이 빠짐: {missing}')
+    if len(table) != len(base):
+        raise ValueError(f'{who}의 행 수({len(table)})가 공통 예측 표({len(base)})와 다름. 행을 빼거나 더하지 마세요')
+    changed = [c for c in base.columns if not _same_values(base[c], table[c])]
+    if changed:
+        raise ValueError(f'{who}에서 공통 열 값(또는 행 순서)이 바뀜: {changed}. 추가 특징 열만 더할 수 있음')
+    return [c for c in table.columns if c not in base.columns]
+
+
 def add_features(data, *fns):
     """
     추가 특징을 붙인 새 표를 돌려줌 (data.table은 바꾸지 않음).
     fn(data) → data.table과 같은 index의 DataFrame. 열 이름은 기존 열·정답 이름과 겹치면 안 됨.
     fn 안에서는 각 줄의 forecast_at 이전에 확정된 기록만 써야 함
-    (예: data.nights에서 known_at <= forecast_at 이고 overlap == False 인 밤만).
+    (예: data.nights에서 known_at <= forecast_at 이고 overlap == False, asleep_invalid == False 인 밤만).
+    fn에는 표들의 복사본이 넘어가므로 원본 data는 바뀌지 않는다. fn이 넘겨받은 table을 고치면 오류.
     """
-    table = data.table.copy()
+    base = data.table
+    check_common_columns(base, base, 'data.table')
+    table = base.copy()
     for fn in fns:
-        new = fn(data)
-        if not new.index.equals(data.table.index):
-            raise ValueError(f'{getattr(fn, "__name__", fn)}: index가 data.table과 다름')
+        name = getattr(fn, '__name__', repr(fn))
+        view = replace(data, table=base.copy(deep=True), nights=data.nights.copy(deep=True),
+                       candidates=data.candidates.copy(deep=True), episodes=data.episodes.copy(deep=True),
+                       activity=None if data.activity is None else data.activity.copy(deep=True))
+        new = fn(view)
+        try:
+            check_common_columns(base, view.table, f'{name}가 받은 data.table')
+        except ValueError as e:
+            raise ValueError(f'{name}: 특징 함수가 data.table을 직접 고쳤음 (원본은 보호됨). 새 열은 반환값으로만 주세요 — {e}')
+        if not isinstance(new, pd.DataFrame) or not new.index.equals(base.index):
+            raise ValueError(f'{name}: data.table과 같은 index의 DataFrame을 돌려줘야 함')
         check_features(new.columns)
         clash = [c for c in new.columns if c in table.columns]
         if clash:
@@ -498,6 +605,10 @@ def print_summary(info):
     print(f"겹치는 조각 {o['pieces']:,}개 / {o['people']}명, 쌍 {o['pairs']} ({kinds}; 서로 다른 밤 사이 "
           f"{o['pairs_cross_night']}), 겹친 길이(분) {o['overlap_min']}")
     print(f"  → 겹침 밤 {o['nights_excluded']:,}개 / {o['people_with_excluded_nights']}명을 정답·과거 입력에서 제외")
+    iv = info['invalid_sleep']
+    bad = ', '.join(f"{ASLEEP_ISSUES[k]} {v}" for k, v in iv['pieces_by_issue'].items())
+    print(f"minsasleep 결측·무효 조각: {bad}")
+    print(f"  → 그 조각이 있는 밤 {iv['nights_excluded']:,}개 / {iv['people_with_excluded_nights']}명을 정답·과거 입력에서 제외")
     print(f"후보 (사람, 밤) {info['nights_candidates']:,}개 / {info['people_after_min_nights']}명 "
           f"(min_nights 적용 전 {info['people_candidates']}명)")
     for k, n in info['night_reasons'].items():
@@ -508,4 +619,4 @@ def print_summary(info):
     print(f"  과거 7밤 수면 입력이 전부 NaN인 밤 {info['nights_no_sleep_input']:,}, "
           f"수면 입력 칸 결측률 {info['sleep_input_missing_rate']:.1%}, 과거 밤을 NaN으로 지운 수: "
           f"예측 시점 미확정 {info['lag_nights_masked_not_known_yet']:,}, "
-          f"겹침 밤 {info['lag_nights_masked_overlap']:,}")
+          f"minsasleep 무효 밤 {info['lag_nights_masked_invalid_sleep']:,}, 겹침 밤 {info['lag_nights_masked_overlap']:,}")

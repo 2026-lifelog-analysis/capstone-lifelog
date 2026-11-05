@@ -62,8 +62,9 @@ def prepare(synthetic=False, out_dir=None, rebuild_split=False, data_kw=None):
         data = fd.load_forecast_data(**data_kw)
         out = Path(out_dir or OUT_REAL)
     fp = fd.table_fingerprint(data.table)
+    prev = out.parent / fd.PREVIOUS_PROTOCOL if out_dir is None and fd.PREVIOUS_PROTOCOL else None
     split, man = fs.load_or_make_split(data.table, out, data_fingerprint=fp, protocol=fd.PROTOCOL,
-                                       rebuild=rebuild_split)
+                                       rebuild=rebuild_split, previous_dir=prev)
     return data, split, man, out
 
 
@@ -71,7 +72,8 @@ def run(data, split, manifest, out_dir, experiments=None, table=None, targets=No
         baseline=None, synthetic=False):
     """
     5-fold 실행 + 저장. experiments는 Experiment 목록 또는 fe.EXPERIMENTS 이름 목록.
-    table을 주면(fd.add_features 결과 등) 그 표로 돌림. baseline 기본 = 첫 번째 실험.
+    table을 주면(fd.add_features 결과 등) 그 표로 돌림. table은 data.table의 모든 열을 같은 순서·같은 값으로
+    가져야 하고 추가 열만 허용 (fd.check_common_columns, 학습 전에 검사). baseline 기본 = 첫 번째 실험.
     반환: (scores, summary, compare, run_dir)
     """
     experiments = [fe.EXPERIMENTS[e] if isinstance(e, str) else e
@@ -80,9 +82,13 @@ def run(data, split, manifest, out_dir, experiments=None, table=None, targets=No
     baseline = baseline or (BASELINE if BASELINE in names else names[0])
     if baseline not in names:
         raise ValueError(f'baseline {baseline!r}이 실험 목록 {names}에 없음')
+    # 학습·저장 전에 검사: 공통 데이터가 분할표를 만든 데이터와 같고, table은 열만 더했는지
+    fp = fd.table_fingerprint(data.table)
+    if manifest.get('data_fingerprint') and fp != manifest['data_fingerprint']:
+        raise ValueError('data.table이 분할표를 만든 공통 데이터와 다름 (지문 불일치). '
+                         'data.table을 고치지 말고 fd.add_features로 열만 더하세요')
     table = data.table if table is None else table
-    if not table[fd.KEY_COLS].equals(data.table[fd.KEY_COLS]):
-        raise ValueError('table의 (pid, date) 줄이 공통 예측 표와 다름. 줄을 빼거나 바꾸지 마세요')
+    extra_cols = fd.check_common_columns(data.table, table, 'table')
     tg = list(targets or fd.TARGETS)
     scores, preds = fe.run_cv(table, split, experiments, targets=tg)
     summary = fe.summarize(scores, preds)
@@ -101,7 +107,7 @@ def run(data, split, manifest, out_dir, experiments=None, table=None, targets=No
     meta = {'run_id': rd.name, 'synthetic': synthetic, 'protocol': fd.PROTOCOL, 'code': code_version(),
             'python': sys.version.split()[0], 'pandas': pd.__version__, 'packages': _versions(),
             'seed': manifest['seed'], 'model_seed': fe.SEED, 'data_settings': data.settings,
-            'data_fingerprint': fd.table_fingerprint(data.table),
+            'data_fingerprint': fp, 'extra_columns': extra_cols,
             'split_sha256': manifest['split_sha256'], 'split_settings':
                 {k: manifest[k] for k in ('final_frac', 'n_folds', 'rounding', 'fold_rule')},
             'targets': tg, 'baseline': baseline, 'experiments':
@@ -138,6 +144,9 @@ def print_split(man):
           f"개발 {man['n_dev']} (fold 크기 {man['fold_sizes']}) | seed {man['seed']}")
     print(f"  split_sha256 {man['split_sha256']}")
     print(f"  data_fingerprint {man.get('data_fingerprint')}")
+    if 'previous_protocol' in man:
+        print(f"  이전 프로토콜 {man['previous_protocol']} 분할과 같음: {man['same_split_as_previous']} "
+              f"(최종 평가 참가자 같음: {man['same_final_as_previous']})")
 
 
 def print_diagnose(S):

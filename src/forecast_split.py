@@ -132,10 +132,13 @@ def load_split(out_dir):
 
 
 def load_or_make_split(table, out_dir, seed=SEED, final_frac=FINAL_FRAC, n_folds=N_FOLDS,
-                       data_fingerprint=None, protocol=None, rebuild=False):
+                       data_fingerprint=None, protocol=None, rebuild=False, previous_dir=None):
     """
     out_dir에 분할표가 있으면 읽고, 지금 참가자 목록·설정·(주면) 데이터 지문과 같은지 검사.
     다르면 SplitMismatch (rebuild=True일 때만 새로 만들어 덮어씀). 없으면 새로 만들어 저장.
+    previous_dir: 이전 프로토콜의 분할표 폴더. 새로 만들 때 이전과 최종 평가 참가자가 다르면
+                  저장하지 않고 SplitMismatch (최종 평가 목록을 조용히 다시 뽑지 않기 위해).
+                  같으면 manifest에 previous_split_sha256을 남김.
     반환: (split, manifest)
     """
     pids = participants(table)
@@ -163,5 +166,18 @@ def load_or_make_split(table, out_dir, seed=SEED, final_frac=FINAL_FRAC, n_folds
         return split, man
     split = make_split(pids, seed, final_frac, n_folds)
     check_split(split, n_folds)
-    man = save_split(split, out, manifest_for(split, seed, final_frac, n_folds, data_fingerprint, protocol))
+    man = manifest_for(split, seed, final_frac, n_folds, data_fingerprint, protocol)
+    prev = Path(previous_dir) if previous_dir else None
+    if prev is not None and (prev / SPLIT_FILE).exists():
+        old, old_man = load_split(prev)
+        if final_pids(old) != final_pids(split) and not rebuild:
+            raise SplitMismatch(
+                f'{prev / SPLIT_FILE}와 최종 평가 참가자가 다름 (이전 {len(final_pids(old))}명, 새로 {len(final_pids(split))}명, '
+                f'공통 {len(final_pids(old) & final_pids(split))}명; 참가자 {len(old)} → {len(split)}명). '
+                '최종 평가 목록 처리 방법을 팀에서 정한 뒤 rebuild=True(--rebuild-split)로 만드세요')
+        man['previous_split_sha256'] = old_man.get('split_sha256')
+        man['previous_protocol'] = old_man.get('protocol')
+        man['same_split_as_previous'] = bool(old.equals(split))
+        man['same_final_as_previous'] = final_pids(old) == final_pids(split)
+    man = save_split(split, out, man)
     return split, man
