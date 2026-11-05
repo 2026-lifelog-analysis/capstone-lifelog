@@ -188,3 +188,21 @@
 - **같은 자료의 재분석.** 네 PR과 같은 NetHealth이고 반복 탐색에 쓰인 자료다. 독립 검증이 아니다.
 
 ---
+
+## 5. 오늘 밤 수면 예측 (공통 실험 기반, 2026-11 추가)
+
+위 1~4절의 이상 탐지 흐름과 별개다. 이상 탐지 하루 표(`load_nethealth`의 `sleep_min`, `bed_min`, `wake_min`, 42일 필터)를 쓰지 않고, 수면 원본에서 밤 단위 표를 따로 만든다. 공통 함수(`preprocessing`, `data_loader`)는 고치지 않았다. 규칙·근거·한계는 [forecast.md](forecast.md)에 정리되어 있다.
+
+| 단계 | 하는 일 | 코드 |
+|---|---|---|
+| ① 자료 | 수면 조각 원본 (활동 원본은 추가 특징용 선택) | `data_loader.read_raw` |
+| ② 밤 단위 표 | 조각 시각 복원(dataDate = 종료일 가정), 겹침 밤 제외, 밤 배정, 90분 병합, 주수면 정답 3개, 과거 달력 7밤 입력 | [forecast_dataset.py](../src/forecast_dataset.py) `build_forecast_table` |
+| ③ 분할 | 최종 평가 15% 고정 + 개발 85% 참가자 5-fold. 프로토콜별 폴더에 저장·검사 | [forecast_split.py](../src/forecast_split.py) `load_or_make_split` |
+| ④ 모델 | 목표·fold마다 새로 학습: `group_median`, `personal_mean7`, `ridge_base`, `catboost_base` | [forecast_eval.py](../src/forecast_eval.py) `EXPERIMENTS` |
+| ⑤ 채점 | 목표별 고정 평가 밤, 분 단위 MAE, fold 평균·표준편차·OOF, 기본−개선 차이 (완전한 5-fold일 때만) | [forecast_eval.py](../src/forecast_eval.py) `run_cv`, `summarize`, `compare` |
+| ⑥ 실행·저장 | `python -m src.forecast_run`. 결과는 `results/forecast/<protocol>/` (깃에 안 올림) | [forecast_run.py](../src/forecast_run.py) |
+| ⑦ 테스트 | 가짜 원본으로 밤 배정·병합·겹침·누출·분할·채점·실행 검사 | [forecast_synthetic.py](../src/forecast_synthetic.py), `tests/test_forecast_*.py` |
+
+- 팀원 실험은 `fr.prepare()`로 공통 데이터와 분할을 받고, `fd.add_features`로 열을 더한 뒤, `fe.Experiment`로 실험을 정의해 `fr.run(...)`을 부른다. 데이터 생성·분할·채점을 복사하지 않는다.
+- 같은 목표끼리는 목표별 고정 기본 입력 `fd.base_features(target)`에서 출발한다.
+- 기본 실행은 최종 평가 참가자의 예측·점수를 만들지 않는다.
