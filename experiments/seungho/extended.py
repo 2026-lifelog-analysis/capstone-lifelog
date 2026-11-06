@@ -262,7 +262,7 @@ def extended_features(data, survey=None, cal=None, act=None):
     # W: 창 길이
     for q in QS:
         M = mats[q]
-        for k in range(8, 29):
+        for k in range(8, 57):
             cols[f'x_{q}_lag{k}'] = M[:, k - 1].astype(F32)
         L56 = sd.level(M, 56, 'med', 'in', 7)
         L28 = sd.level(M, 28, 'med', 'in', 7)
@@ -281,12 +281,14 @@ def extended_features(data, survey=None, cal=None, act=None):
     cols['x_h_fed_tomorrow'] = cidx['h_fed'].reindex(d1).to_numpy(dtype=F32)
     cols['x_t_off_tomorrow'] = cidx['off'].reindex(d1).to_numpy(dtype=F32)
     cols['x_t_off_today'] = cidx['off'].reindex(d0).to_numpy(dtype=F32)
-    # 같은 종류 밤(내일 쉬는지)끼리의 개인 평소 (과거 28밤)
-    offmat = np.stack([cidx['off'].reindex(t['date'] - pd.Timedelta(days=k - 1)).to_numpy(dtype=float)
-                       for k in range(1, 29)], axis=1)                 # 밤 D−k의 다음 날 = D−k+1
+    # 같은 종류 밤(내일 쉬는지)끼리의 개인 평소 (과거 W밤, W=28은 접미사 없음)
+    offall = np.stack([cidx['off'].reindex(t['date'] - pd.Timedelta(days=k - 1)).to_numpy(dtype=float)
+                       for k in range(1, 57)], axis=1)                 # 밤 D−k의 다음 날 = D−k+1
     today_off = cols['x_t_off_tomorrow'].astype(float)
-    for q in QS:
-        M = mats[q][:, :28]
+    for (q, W) in [(q, W) for W in (28, 42, 56) for q in QS]:
+        sfx = '' if W == 28 else f'_w{W}'
+        offmat = offall[:, :W]
+        M = mats[q][:, :W]
         Mo = np.where(offmat == 1, M, np.nan)
         Mw = np.where(offmat == 0, M, np.nan)
         Lo, Lw = _med(Mo), _med(Mw)
@@ -294,10 +296,10 @@ def extended_features(data, survey=None, cal=None, act=None):
         Lw[np.sum(~np.isnan(Mw), 1) < 3] = np.nan
         same = np.where(today_off == 1, Lo, Lw)
         L28 = sd.level(mats[q], 28, 'med', 'in', 7)
-        cols[f'x_{q}_Lsame'] = same.astype(F32)
-        cols[f'x_{q}_gap_same'] = (same - L28).astype(F32)
-        cols[f'x_{q}_Loffwork'] = (Lo - Lw).astype(F32)
-        cols[f'x_{q}_dR7_Lsame'] = (_mean(mats[q][:, :7]) - same).astype(F32)
+        cols[f'x_{q}_Lsame{sfx}'] = same.astype(F32)
+        cols[f'x_{q}_gap_same{sfx}'] = (same - L28).astype(F32)
+        cols[f'x_{q}_Loffwork{sfx}'] = (Lo - Lw).astype(F32)
+        cols[f'x_{q}_dR7_Lsame{sfx}'] = (_mean(mats[q][:, :7]) - same).astype(F32)
 
     # A: 활동 (D−1..D−7, 평소 28일 대비)
     act = raw_activity() if act is None else act
@@ -457,9 +459,61 @@ def combo2_exps():
             exp('K2_everything', ALL_EXT + ['other_lags14', 'steps'])]
 
 
+def offbase_w(W):
+    sfx = '' if W == 28 else f'_w{W}'
+    return lambda t: [f'x_{t}_Lsame{sfx}', f'x_{t}_gap_same{sfx}', f'x_{t}_Loffwork{sfx}', f'x_{t}_dR7_Lsame{sfx}']
+
+
+def window_exps(weeks=(4, 6, 8)):
+    """지난 W주 원값 입력 (자기 양 / 세 양) × (그대로 / + 같은 창의 쉬는 날 기준선 / + 학사·공휴일)."""
+    out = []
+    for wk in weeks:
+        n = wk * 7
+        def f(all3, ob, cal, n=n):
+            def g(t):
+                cols = [c for q in (QS if all3 else [t]) for c in own_lags(q, range(1, n + 1))] + ['dow']
+                if ob:
+                    cols += offbase_w(n)(t)
+                if cal:
+                    cols += BLOCKS['term'](t) + BLOCKS['fed'](t)
+                return cols
+            return g
+        p = f'L{wk}w'
+        if wk == 4:
+            continue                      # 4주는 window28_exps (이미 실행한 이름 유지)
+        out += [fe.Experiment(f'{p}_lag{n}', fe.CatBoostModel, f(False, False, False)),
+                fe.Experiment(f'{p}_lag{n}_all3', fe.CatBoostModel, f(True, False, False)),
+                fe.Experiment(f'{p}_lag{n}_offbase', fe.CatBoostModel, f(False, True, False)),
+                fe.Experiment(f'{p}_lag{n}_offbase_term', fe.CatBoostModel, f(False, True, True)),
+                fe.Experiment(f'{p}_lag{n}_all3_offbase_term', fe.CatBoostModel, f(True, True, True)),
+                fe.Experiment(f'{p}_lag7_offbase{n}_term', fe.CatBoostModel,
+                              lambda t, n=n: fd.base_features(t) + offbase_w(n)(t) + BLOCKS['term'](t) + BLOCKS['fed'](t))]
+    return out
+
+
+def window28_exps():
+    """지난 4주(28밤) 원값을 입력으로: 기본 7밤 → 28밤, 세 양 28밤, + 쉬는 날 기준선, + 학사·공휴일."""
+    lag28 = lambda q: own_lags(q, range(1, 29))
+    def f(extra_blocks, all3=False):
+        def g(t):
+            qs = QS if all3 else [t]
+            cols = [c for q in qs for c in lag28(q)] + ['dow']
+            for b in extra_blocks:
+                cols += [c for c in BLOCKS[b](t) if c not in cols]
+            return cols
+        return g
+    return [fe.Experiment('L4w_lag28', fe.CatBoostModel, f([])),
+            fe.Experiment('L4w_lag28_all3', fe.CatBoostModel, f([], True)),
+            fe.Experiment('L4w_lag28_offbase', fe.CatBoostModel, f(['offbase'])),
+            fe.Experiment('L4w_lag28_offbase_term', fe.CatBoostModel, f(['offbase', 'term', 'fed'])),
+            fe.Experiment('L4w_lag28_all3_offbase_term', fe.CatBoostModel, f(['offbase', 'term', 'fed'], True)),
+            fe.Experiment('L4w_lag7_offbase28_term', fe.CatBoostModel,
+                          lambda t: fd.base_features(t) + offbase_w(28)(t) + BLOCKS['term'](t) + BLOCKS['fed'](t))]
+
+
 def phase3_exps():
     out = {}
-    for e in family_exps() + subset_exps() + combo2_exps():
+    for e in family_exps() + subset_exps() + combo2_exps() + window28_exps() + window_exps():
         if e.name in out:
             raise ValueError(e.name)
         out[e.name] = e
