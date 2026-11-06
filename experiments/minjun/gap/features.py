@@ -9,6 +9,8 @@
                 last_sleep / last_bed / last_wake (마지막 유효 밤의 값)
   feat_recent : rec1_<목표> .. rec7_<목표> (유효 밤 중 k번째로 최근 것의 값. 날짜 간격 정보 없음)
   feat_long   : med28_<목표>, sd28_<목표> (달력 [D-28, D-1] 창의 유효 밤 값 중앙값·표준편차. sd는 2밤 이상)
+  feat_wear   : wear_lag1 (날짜 D-1 착용률), n_wear7 (D-1~D-7 중 착용률 80% 이상인 날 수),
+                wear_mean7 (D-1~D-7 착용률 평균). 날짜 D-k 하루 집계는 D 0시에 확정된다고 가정. 날짜 D 당일은 안 씀
 """
 import numpy as np
 import pandas as pd
@@ -16,6 +18,8 @@ import pandas as pd
 COLS = {'sleep': 'sleep_min', 'bed': 'bedtime', 'wake': 'waketime'}
 LAST = {'sleep': 'last_sleep', 'bed': 'last_bed', 'wake': 'last_wake'}
 N_REC = 7
+WEAR = ['wear_lag1', 'n_wear7', 'wear_mean7']
+WEAR_OK = 80
 
 
 def _valid_nights(data):
@@ -94,6 +98,26 @@ def feat_long(data):
             if len(x) >= 2:
                 res[f'sd28_{k}'][i] = np.std(x, ddof=1)
     return pd.DataFrame(res, index=t.index)
+
+
+def feat_wear(data):
+    t = data.table
+    if data.activity is None:
+        raise ValueError('활동 원본 필요')
+    a = data.activity[['pid', 'date', 'complypercent']]
+    base = t[['pid', 'date']]
+    wear = np.full((len(t), 7), np.nan)
+    for k in range(1, 8):
+        m = base.merge(a.assign(date=a['date'] + pd.Timedelta(days=k)), on=['pid', 'date'], how='left')
+        assert len(m) == len(t)
+        wear[:, k - 1] = m['complypercent'].to_numpy(dtype=float)
+    out = pd.DataFrame(index=t.index)
+    out['wear_lag1'] = wear[:, 0]
+    out['n_wear7'] = np.nansum(wear >= WEAR_OK, axis=1).astype(float)
+    with np.errstate(all='ignore'):
+        cnt = np.sum(~np.isnan(wear), axis=1)
+        out['wear_mean7'] = np.where(cnt > 0, np.nansum(wear, axis=1) / np.maximum(cnt, 1), np.nan)
+    return out
 
 
 def rec(target):

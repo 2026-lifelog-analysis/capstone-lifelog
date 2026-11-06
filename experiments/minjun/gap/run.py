@@ -14,6 +14,8 @@
   E  gap_E_last    : A + 마지막 유효 기록값         (7밤이 모두 빈 밤용)
   F  gap_F_lastsin : E + days_since_last
   H  gap_H_long28  : A + 28일 창 중앙값·표준편차   (참고. ③ 개인 기준선과 겹침)
+  W  gap_W_wear     : A + 착용 정보 (기기를 안 찼는지, 찼는데 수면만 안 잡혔는지)
+  AR gap_AR_both   : A + 최근 유효 기록 7개          (날짜 기준 7밤과 당겨 온 기록을 함께 주고 모델이 고르게 함)
 주 비교: P1 = R1 → R2 (전체), P2 = E → F (n_valid7 == 0). 결과를 보기 전에 meta.json에 기록한다.
 CatBoost 설정·분할·평가 밤은 공통 그대로이고, 학습 시드(random_seed)만 0..S-1로 반복한다.
 
@@ -28,7 +30,7 @@ from datetime import datetime
 from src import forecast_dataset as fd
 from src import forecast_eval as fe
 from src import forecast_run as fr
-from experiments.minjun.gap.features import feat_gap, feat_long, feat_recent, LAST, rec
+from experiments.minjun.gap.features import feat_gap, feat_long, feat_recent, feat_wear, LAST, WEAR, rec
 
 ARMS = {
     'gap_A_base': fd.base_features,
@@ -38,6 +40,8 @@ ARMS = {
     'gap_E_last': lambda t: fd.base_features(t) + [LAST[t]],
     'gap_F_lastsin': lambda t: fd.base_features(t) + [LAST[t], 'days_since_last'],
     'gap_H_long28': lambda t: fd.base_features(t) + [f'med28_{t}', f'sd28_{t}'],
+    'gap_W_wear': lambda t: fd.base_features(t) + WEAR,
+    'gap_AR_both': lambda t: fd.base_features(t) + rec(t),
 }
 
 
@@ -48,12 +52,12 @@ def main():
     a = ap.parse_args()
 
     data, split, man, out = fr.prepare()
-    table = fd.add_features(data, feat_gap, feat_long, feat_recent)
+    table = fd.add_features(data, feat_gap, feat_wear, feat_long, feat_recent)
     fp = fd.table_fingerprint(data.table)
     assert fp == man['data_fingerprint']
+    extra = [c for c in table.columns if c not in data.table.columns]
     rd = out / 'gap3' / datetime.now().strftime('%Y%m%d-%H%M%S')
     rd.mkdir(parents=True)
-    extra = [c for c in table.columns if c not in data.table.columns]
     table[['pid', 'date'] + extra].to_parquet(rd / 'features.parquet', index=False)
     meta = {'data_fingerprint': fp, 'split_sha256': man['split_sha256'], 'protocol': fd.PROTOCOL,
             'code': fr.code_version(), 'catboost_params': fe.CATBOOST_PARAMS, 'seeds': list(range(a.seeds)),
@@ -62,7 +66,10 @@ def main():
                         'P2': ['gap_E_last', 'gap_F_lastsin', 'n_valid7==0']},
             'final_test_scored': False}
     (rd / 'meta.json').write_text(json.dumps(meta, indent=2, ensure_ascii=False, default=str), encoding='utf-8')
+    run_seeds(a, table, split, rd)
 
+
+def run_seeds(a, table, split, rd):
     for s in range(a.seeds):
         exps = [fe.Experiment(n, lambda s=s: fe.CatBoostModel(random_seed=s), ARMS[n]) for n in a.arms]
         t0 = datetime.now()

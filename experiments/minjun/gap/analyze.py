@@ -31,7 +31,9 @@ B = 5000
 MARGIN = 1.0
 BASE = 'gap_A_base'
 ARMS = ['gap_A_base', 'gap_R0_recent', 'gap_R1_count', 'gap_R2_since', 'gap_E_last', 'gap_F_lastsin',
-        'gap_H_long28']
+        'gap_H_long28', 'gap_W_wear', 'gap_AR_both']
+# 공백에 따라 고르는 규칙 (새 학습 없음, 예측 시점에 아는 경과일로 A와 R0의 예측 중 하나를 고름. 사후 탐색)
+SWITCH = {'gap_SW2_switch': 2, 'gap_SW8_switch': 8}   # 경과일 >= k 이거나 과거 기록 없음 → R0, 아니면 A
 BK = ['어젯밤 기록 있음', '1~6밤 빠짐', '7밤 이상 빠짐', '참가 첫날(과거 기록 없음)']
 
 
@@ -127,6 +129,15 @@ def main(rd):
         assert a['bucket'].notna().all()
         avg[arm] = a
     nseeds = {arm: errs[arm]['n'] for arm in errs}
+    if 'gap_R0_recent' in avg:
+        a0, r0 = avg[BASE], avg['gap_R0_recent']
+        assert a0[['pid', 'date', 'target']].equals(r0[['pid', 'date', 'target']])
+        for name, k in SWITCH.items():
+            use_r0 = (a0['days_since_last'].isna() | (a0['days_since_last'] >= k)).to_numpy()
+            sw = a0.copy()
+            sw['ae'] = np.where(use_r0, r0['ae'], a0['ae'])
+            sw['hit30'] = np.where(use_r0, r0['hit30'], a0['hit30'])
+            avg[name] = sw
     boot = Boot(avg[BASE]['pid'])
 
     def compare(base, new, t, mask_name='all'):
@@ -164,10 +175,19 @@ def main(rd):
     exp_pairs = [(BASE, 'gap_R2_since', 'all'), ('gap_R0_recent', 'gap_R1_count', 'all'),
                  ('gap_R0_recent', 'gap_R1_count', '경과일>=2'), (BASE, 'gap_R0_recent', 'all'),
                  (BASE, 'gap_H_long28', 'all'), (BASE, 'gap_E_last', 'n_valid7==0')]
-    for arm in ('gap_E_last', 'gap_R0_recent', 'gap_H_long28'):
+    exp_pairs += [(BASE, 'gap_W_wear', 'all')]
+    for arm in ('gap_E_last', 'gap_R0_recent', 'gap_H_long28', 'gap_W_wear'):
         exp_pairs += [(BASE, arm, b) for b in BK]
     expl = pd.DataFrame([compare(b_, n_, t, s) for b_, n_, s in exp_pairs for t in T if b_ in avg and n_ in avg])
     expl['p_holm'] = holm(expl['p'])
+    # 후속 비교 (사후): 공백에 따라 입력을 바꾸는 개선안
+    fol_pairs = []
+    for arm in ('gap_AR_both', 'gap_SW2_switch', 'gap_SW8_switch'):
+        if arm in avg:
+            fol_pairs += [(BASE, arm, 'all')] + [(BASE, arm, b) for b in BK]
+    fol = pd.DataFrame([compare(b_, n_, t, s) for b_, n_, s in fol_pairs for t in T])
+    if len(fol):
+        fol['p_holm'] = holm(fol['p'])
     # 시드 잡음 기준: A 시드 0~4 vs 5~9
     null = []
     has_null = errs[BASE]['n1'] > 0 and errs[BASE]['n2'] > 0
@@ -214,7 +234,8 @@ def main(rd):
         jan_share=('month', lambda s: float((s == 1).mean())), aug_share=('month', lambda s: float((s == 8).mean())),
         day_in_max=('day_in', 'max'))
 
-    for name, df in [('primary', prim), ('supplementary', sup), ('exploratory', expl), ('seed_null', null),
+    for name, df in [('primary', prim), ('supplementary', sup), ('exploratory', expl), ('followup', fol),
+                     ('seed_null', null),
                      ('arm_summary', summ), ('bucket_table', bucket_tab), ('within_person_gap', wp)]:
         df.to_csv(rd / f'analysis_{name}.csv', index=False)
     comp_tab.to_csv(rd / 'analysis_bucket_composition.csv')
@@ -231,6 +252,9 @@ def main(rd):
         print(prim[cols].round(4).to_string(index=False))
         print('\n[보충 비교 (사후)]')
         print(sup[cols].round(4).to_string(index=False))
+        if len(fol):
+            print('\n[후속 비교 (사후): 공백에 따라 입력 바꾸기]')
+            print(fol[cols[1:]].round(4).to_string(index=False))
         print('\n[탐색 비교]')
         print(expl[cols[1:]].round(4).to_string(index=False))
         print('\n[공백 구간별 MAE (시드 평균)]')
