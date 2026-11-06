@@ -308,6 +308,8 @@ def extended_features(data, survey=None, cal=None, act=None):
     # A: 활동 (D−1..D−7, 평소 28일 대비)
     act = raw_activity() if act is None else act
     cols.update({f'x_a_{k}': v for k, v in day_lags(t, act, ACT, range(1, 8)).items()})
+    # 오늘(날짜 D) 하루 합계. ⚠ 예측 시각 18시 이후 걸음까지 포함 = 공통 규칙 밖 (상한 확인용 별도 실험)
+    cols.update({f'x_a_{k}': v for k, v in day_lags(t, act, ACT, [0]).items()})
     for c in ['steps', 'hr', 'sed', 'modvig']:
         L = day_lags(t, act, [c], range(1, 29))
         M = np.stack([L[f'{c}_l{k}'] for k in range(1, 29)], axis=1).astype(float)
@@ -315,6 +317,7 @@ def extended_features(data, survey=None, cal=None, act=None):
         Lm[np.sum(~np.isnan(M), 1) < 7] = np.nan
         cols[f'x_a_{c}_L28'] = Lm.astype(F32)
         cols[f'x_a_{c}_dR3'] = (_mean(M[:, :3]) - Lm).astype(F32)
+        cols[f'x_a_{c}_d0'] = (cols[f'x_a_{c}_l0'].astype(float) - Lm).astype(F32)   # 오늘 − 평소 (⚠ 규칙 밖)
 
     # N: 수면 부가
     nm = night_metrics(data)
@@ -325,6 +328,28 @@ def extended_features(data, survey=None, cal=None, act=None):
         sdm = np.nanstd(mid, axis=1, ddof=1)
     sdm[np.sum(~np.isnan(mid), 1) < 3] = np.nan
     cols['x_n_mid_sd7'] = sdm.astype(F32)
+
+    # 같은 요일의 그 사람 평소 (지난 W주의 같은 요일 밤 = lag 7, 14, ..., 7W), 유효 2개 이상
+    # 그리고 그 사람이 얼마나 일정한지 (지난 8주 MAD, 쉬는 날 전/평일 전 따로)
+    for q in QS:
+        M = mats[q]
+        for W in (4, 6, 8):
+            D_ = M[:, [7 * k - 1 for k in range(1, W + 1)]]
+            dl = _med(D_)
+            dl[np.sum(~np.isnan(D_), 1) < 2] = np.nan
+            cols[f'x_{q}_dowL{W}'] = dl.astype(F32)
+            cols[f'x_{q}_dowgap{W}'] = (dl - sd.level(M, 7 * W, 'med', 'in', 7)).astype(F32)
+        S56 = M[:, :56]
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', RuntimeWarning)
+            med = np.nanmedian(S56, axis=1, keepdims=True)
+            mad = np.nanmedian(np.abs(S56 - med), axis=1)
+            Sw = np.where(offall == 0, S56, np.nan)
+            madw = np.nanmedian(np.abs(Sw - np.nanmedian(Sw, axis=1, keepdims=True)), axis=1)
+        mad[np.sum(~np.isnan(S56), 1) < 14] = np.nan
+        madw[np.sum(~np.isnan(Sw), 1) < 10] = np.nan
+        cols[f'x_{q}_mad56'] = mad.astype(F32)
+        cols[f'x_{q}_madwork56'] = madw.astype(F32)
 
     # P: 개인 정적
     sv = survey_static() if survey is None else survey
@@ -514,6 +539,88 @@ def tag_exps():
             fe.Experiment('TAG4w_all3_offbase_term', fe.CatBoostModel, f(28, True, True))]
 
 
+TODAY = {  # ⚠ 오늘(D) 하루 합계 = 18시 이후 포함. 공통 규칙 밖, 이름에 TODAY를 붙여 구분
+    'today_steps': lambda t: ['x_a_steps_l0'],
+    'today_steps_rel': lambda t: ['x_a_steps_l0', 'x_a_steps_L28', 'x_a_steps_d0'],
+    'today_act': lambda t: [f'x_a_{c}_l0' for c in ACT] + [f'x_a_{c}_d0' for c in ('steps', 'hr', 'sed', 'modvig')]
+                           + [f'x_a_{c}_L28' for c in ('steps', 'hr', 'sed', 'modvig')],
+}
+
+
+def today_exps():
+    """오늘 걸음·활동을 넣으면 얼마나 좋아지나 (상한). 기본 / 간단 조합 / 최고 조합 위에 각각."""
+    simple = lambda t: fd.base_features(t) + offbase_w(56)(t) + BLOCKS['term'](t) + BLOCKS['fed'](t)
+    best = [e for e in tag_exps() if e.name == 'TAG8w_all3_offbase_term'][0].features
+    out = []
+    for nm, f in TODAY.items():
+        out.append(fe.Experiment(f'TODAY_base_{nm}', fe.CatBoostModel, (lambda f: lambda t: fd.base_features(t) + f(t))(f)))
+    out.append(fe.Experiment('TODAY_base_today_steps_yday7', fe.CatBoostModel,
+                             lambda t: fd.base_features(t) + ['x_a_steps_l0'] + BLOCKS['steps7'](t)))
+    out.append(fe.Experiment('TODAY_simple', fe.CatBoostModel, simple))   # 비교용 (오늘 정보 없음)
+    out.append(fe.Experiment('TODAY_simple_today_steps_rel', fe.CatBoostModel,
+                             lambda t: simple(t) + TODAY['today_steps_rel'](t)))
+    out.append(fe.Experiment('TODAY_simple_today_act', fe.CatBoostModel, lambda t: simple(t) + TODAY['today_act'](t)))
+    out.append(fe.Experiment('TODAY_best_today_act', fe.CatBoostModel, lambda t: best(t) + TODAY['today_act'](t)))
+    return out
+
+
+DOWB = lambda W: (lambda t: [f'x_{t}_dowL{W}', f'x_{t}_dowgap{W}'])
+STAB = lambda t: [f'x_{t}_mad56', f'x_{t}_madwork56']
+
+
+class TypeSplit:
+    """
+    사람을 '얼마나 일정한가'(그날까지 지난 8주 기록의 흔들림, x_<목표>_mad56)로 3유형으로 나눠 유형별 모델을 따로 학습.
+    경계(3등분)는 학습 참가자 줄로만 정함. 흔들림을 계산할 수 없는 줄(기록 부족)은 전체 모델로 예측.
+    """
+    def fit(self, train, y, features):
+        t = {v: k for k, v in fd.TARGETS.items()}[y]
+        self.col_ = f'x_{t}_mad56'
+        self.features_ = list(features)
+        v = train[self.col_]
+        self.cuts_ = list(v.quantile([1 / 3, 2 / 3]).to_numpy())
+        self.all_ = fe.CatBoostModel().fit(train, y, self.features_)
+        self.sub_ = {}
+        g = self._group(train)
+        for k in (0, 1, 2):
+            tr = train[g == k]
+            if len(tr) > 1000:
+                self.sub_[k] = fe.CatBoostModel().fit(tr, y, self.features_)
+        return self
+
+    def _group(self, df):
+        v = df[self.col_].to_numpy(dtype=float)
+        g = np.where(v <= self.cuts_[0], 0, np.where(v <= self.cuts_[1], 1, 2))
+        return np.where(np.isnan(v), -1, g)
+
+    def predict(self, df):
+        out = self.all_.predict(df)
+        g = self._group(df)
+        for k, m in self.sub_.items():
+            idx = g == k
+            if idx.any():
+                out[idx] = m.predict(df[idx])
+        return out
+
+
+def dow_exps():
+    """같은 요일의 그 사람 평소 (4·6·8주) + 얼마나 일정한지 + 유형별 모델."""
+    simple = lambda t: fd.base_features(t) + offbase_w(56)(t) + BLOCKS['term'](t) + BLOCKS['fed'](t)
+    best = [e for e in tag_exps() if e.name == 'TAG8w_all3_offbase_term'][0].features
+    cb = fe.CatBoostModel
+    out = []
+    for W in (4, 6, 8):
+        out.append(fe.Experiment(f'DOW_base_w{W}', cb, (lambda W: lambda t: fd.base_features(t) + DOWB(W)(t))(W)))
+        out.append(fe.Experiment(f'DOW_simple_w{W}', cb, (lambda W: lambda t: simple(t) + DOWB(W)(t))(W)))
+    all3dow = lambda t: [c for q in QS for c in DOWB(6)(q)]
+    out.append(fe.Experiment('DOW_simple_w6_all3', cb, lambda t: simple(t) + all3dow(t)))
+    out.append(fe.Experiment('DOW_best_w6_all3', cb, lambda t: best(t) + all3dow(t)))
+    out.append(fe.Experiment('STAB_simple', cb, lambda t: simple(t) + STAB(t)))
+    out.append(fe.Experiment('STAB_simple_dow6', cb, lambda t: simple(t) + DOWB(6)(t) + STAB(t)))
+    out.append(fe.Experiment('TYPE_simple_dow6', TypeSplit, lambda t: simple(t) + DOWB(6)(t) + STAB(t)))
+    return out
+
+
 def window28_exps():
     """지난 4주(28밤) 원값을 입력으로: 기본 7밤 → 28밤, 세 양 28밤, + 쉬는 날 기준선, + 학사·공휴일."""
     lag28 = lambda q: own_lags(q, range(1, 29))
@@ -536,7 +643,7 @@ def window28_exps():
 
 def phase3_exps():
     out = {}
-    for e in family_exps() + subset_exps() + combo2_exps() + window28_exps() + window_exps() + tag_exps():
+    for e in family_exps() + subset_exps() + combo2_exps() + window28_exps() + window_exps() + tag_exps() + today_exps() + dow_exps():
         if e.name in out:
             raise ValueError(e.name)
         out[e.name] = e

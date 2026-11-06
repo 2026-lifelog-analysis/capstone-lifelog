@@ -134,5 +134,5 @@ def test_feats_of_keeps_base_and_no_targets():
             cols = e.features(t)
             fd.check_features(cols)
             assert len(cols) == len(set(cols)), e.name
-            if not e.name.startswith(('Q_', 'L4w_', 'L6w_', 'L8w_', 'TAG')):
+            if not e.name.startswith(('Q_', 'L4w_', 'L6w_', 'L8w_', 'TAG', 'TODAY_', 'DOW_', 'STAB_', 'TYPE_')):
                 assert cols[:8] == fd.base_features(t), e.name
