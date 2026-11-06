@@ -285,6 +285,10 @@ def extended_features(data, survey=None, cal=None, act=None):
     offall = np.stack([cidx['off'].reindex(t['date'] - pd.Timedelta(days=k - 1)).to_numpy(dtype=float)
                        for k in range(1, 57)], axis=1)                 # 밤 D−k의 다음 날 = D−k+1
     today_off = cols['x_t_off_tomorrow'].astype(float)
+    vac = (cidx['h_break'] + cidx['h_winter'] + cidx['h_summer']).clip(upper=1)
+    for k in range(1, 57):                                   # 밤 D−k의 깨어나는 날 = D−k+1
+        cols[f'x_offlag{k}'] = offall[:, k - 1].astype(F32)
+        cols[f'x_vaclag{k}'] = vac.reindex(t['date'] - pd.Timedelta(days=k - 1)).to_numpy(dtype=F32)
     for (q, W) in [(q, W) for W in (28, 42, 56) for q in QS]:
         sfx = '' if W == 28 else f'_w{W}'
         offmat = offall[:, :W]
@@ -491,6 +495,25 @@ def window_exps(weeks=(4, 6, 8)):
     return out
 
 
+def tag_exps():
+    """과거 밤마다 '쉬는 날 전이었나'·'방학 중이었나' 표시를 원값 옆에 직접 붙임 (요약하지 않음)."""
+    def f(n, offbase, cal):
+        def g(t):
+            cols = [c for q in QS for c in own_lags(q, range(1, n + 1))] + ['dow']
+            cols += [f'x_offlag{k}' for k in range(1, n + 1)] + [f'x_vaclag{k}' for k in range(1, n + 1)]
+            if offbase:
+                cols += offbase_w(n)(t)
+            if cal:
+                cols += BLOCKS['term'](t) + BLOCKS['fed'](t)
+            return cols
+        return g
+    return [fe.Experiment('TAG8w_all3', fe.CatBoostModel, f(56, False, False)),
+            fe.Experiment('TAG8w_all3_term', fe.CatBoostModel, f(56, False, True)),
+            fe.Experiment('TAG8w_all3_offbase_term', fe.CatBoostModel, f(56, True, True)),
+            fe.Experiment('TAG4w_all3_term', fe.CatBoostModel, f(28, False, True)),
+            fe.Experiment('TAG4w_all3_offbase_term', fe.CatBoostModel, f(28, True, True))]
+
+
 def window28_exps():
     """지난 4주(28밤) 원값을 입력으로: 기본 7밤 → 28밤, 세 양 28밤, + 쉬는 날 기준선, + 학사·공휴일."""
     lag28 = lambda q: own_lags(q, range(1, 29))
@@ -513,7 +536,7 @@ def window28_exps():
 
 def phase3_exps():
     out = {}
-    for e in family_exps() + subset_exps() + combo2_exps() + window28_exps() + window_exps():
+    for e in family_exps() + subset_exps() + combo2_exps() + window28_exps() + window_exps() + tag_exps():
         if e.name in out:
             raise ValueError(e.name)
         out[e.name] = e
