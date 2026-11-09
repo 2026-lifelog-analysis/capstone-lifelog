@@ -234,3 +234,12 @@ def timed_fit(cls, config, seed, tr, ytr, va, yva, features):
     t0 = time.perf_counter()
     m = cls(config, seed).fit(tr, ytr, va, yva, features)
     return m, time.perf_counter() - t0
+
+
+class CatBoostWideM(CatBoostM):
+    """감사 반영: CatBoost가 탐색 범위 끝(깊이 8)을 주로 골라, 깊이 10과 l2 규제를 더한 넓은 탐색 (5개)."""
+    GRID = CatBoostM.GRID + [{'depth': 10, 'learning_rate': 0.05},
+                             {'depth': 8, 'learning_rate': 0.05, 'l2_leaf_reg': 10}]
+
+
+MODELS['catboost_wide'] = CatBoostWideM

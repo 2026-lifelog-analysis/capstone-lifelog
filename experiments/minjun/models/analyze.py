@@ -3,12 +3,17 @@
 
     python -m experiments.minjun.models.analyze <run.py 결과 폴더>
 
-  - 지표: 밤 단위 MAE(분)와 ±30분 적중률. 시드별 값을 평균 (예측을 평균한 앙상블이 아님)
-  - 비교: 같은 입력에서 CatBoost 대비 Ridge·MLP·FT-Transformer. Δ = CatBoost MAE − 비교 모델 MAE (양수 = 비교 모델이 나음)
-          주 묶음 = 공통 기본 입력(base) 9개, 보조 묶음 = 확장 입력(ext) 9개 + 모델별 base→ext 12개. 묶음마다 Holm 보정
-  - 신뢰구간: 사람 클러스터 bootstrap (개발 참가자 복원 추출, 밤 단위 MAE 차이 재계산), B = 5000
-  - 시드 흔들림: 모델·입력·목표마다 시드별 MAE의 표준편차
-  - 공백 구간별 MAE: 마지막 유효 기록 이후 일수(④ feat_gap)로 나눔
+지표: 밤 단위 MAE(분)와 ±30분 적중률. 시드별 값을 평균한다(예측을 평균한 앙상블이 아님).
+
+비교 두 가지 (모두 같은 입력에서 CatBoost 대비, Δ = CatBoost MAE − 비교 모델 MAE, 양수 = 비교 모델이 나음)
+  raw : 모델 예측 그대로
+  cal : 중심 보정. 모델마다 손실·조기 종료 기준이 달라 예측의 중심(평균 쪽인지 중앙값 쪽인지)이 다르다.
+        MAE 채점에서는 중앙값 쪽이 유리하므로, 모든 모델에 똑같이 '다른 fold 잔차(정답 − 예측)의 중앙값'만큼
+        예측을 옮긴다. 채점하는 fold의 정답은 쓰지 않는다(교차 보정). 모델 구조의 차이만 보려는 것.
+
+신뢰구간·p값: 사람과 시드를 함께 다시 뽑는 bootstrap (B = 5000).
+  사람 = 개발 참가자 복원 추출(밤 단위 MAE 차이 재계산), 시드 = 시드 3개 복원 추출 → 재학습 흔들림을 포함.
+  묶음마다 Holm 보정.
 """
 import json
 import sys
@@ -24,60 +29,59 @@ B = 5000
 MARGIN = 1.0
 REF = 'catboost'
 BK = ['어젯밤 기록 있음', '1~6밤 끊김', '7밤 이상 끊김', '참가 첫날(과거 기록 없음)']
-LABEL = {'ridge': 'Ridge', 'catboost': 'CatBoost', 'mlp': 'MLP', 'ftt': 'FT-Transformer'}
 
 
 def holm(p):
     p = np.asarray(p, float)
     idx = np.argsort(p)
-    q = p[idx] * (len(p) - np.arange(len(p)))
-    q = np.minimum(np.maximum.accumulate(q), 1)
+    q = np.minimum(np.maximum.accumulate(p[idx] * (len(p) - np.arange(len(p)))), 1)
     out = np.empty(len(p))
     out[idx] = q
     return out
 
 
-class Boot:
-    def __init__(self, pids, seed=0):
-        self.pids = np.array(sorted(set(pids)))
-        rng = np.random.default_rng(seed)
-        P = len(self.pids)
-        self.W = np.stack([np.bincount(rng.integers(0, P, P), minlength=P) for _ in range(B)]).astype(np.float32)
-
-    def diff(self, pid, d):
-        g = pd.DataFrame({'pid': pid, 'd': d}).groupby('pid')['d'].agg(['sum', 'size']).reindex(self.pids, fill_value=0)
-        S, N = g['sum'].to_numpy(np.float64), g['size'].to_numpy(np.float64)
-        est = S.sum() / N.sum()
-        bs = (self.W @ S) / np.maximum(self.W @ N, 1)
-        p = float(np.mean(np.abs(bs - est) >= abs(est))) if est != 0 else 1.0
-        return {'delta': est, 'ci95_lo': np.percentile(bs, 2.5), 'ci95_hi': np.percentile(bs, 97.5),
-                'ci90_lo': np.percentile(bs, 5), 'ci90_hi': np.percentile(bs, 95), 'p': max(p, 1 / B),
-                'n_people': int((N > 0).sum()), 'n_nights': int(N.sum())}
-
-
 def load(rd):
-    acc, rows, secs = {}, [], []
+    """팔(모델__입력)마다 시드별 |오차| (raw, cal), 적중, 키."""
+    arms = {}
     for f in sorted(rd.glob('preds_*__*_s*.parquet')):
         arm, s = f.stem[len('preds_'):].rsplit('_s', 1)
         p = pd.read_parquet(f).sort_values(['target', 'pid', 'date']).reset_index(drop=True)
-        ae = np.abs(p['y_true'].to_numpy(float) - p['y_pred'].to_numpy(float))
-        hit = (ae <= 30).astype(float)
-        for t in p['target'].unique():
-            m = (p['target'] == t).to_numpy()
-            rows.append({'arm': arm, 'seed': int(s), 'target': t, 'mae': ae[m].mean(), 'hit30': hit[m].mean()})
-        sec = p.drop_duplicates(['target', 'fold'])['fit_sec'].sum()
-        secs.append({'arm': arm, 'seed': int(s), 'fit_sec_total': float(sec)})
-        if arm not in acc:
-            acc[arm] = {'keys': p[['pid', 'date', 'target']].copy(), 'ae': np.zeros(len(p)), 'hit': np.zeros(len(p)), 'n': 0}
-        a = acc[arm]
+        yt, yp = p['y_true'].to_numpy(float), p['y_pred'].to_numpy(float)
+        res = yt - yp
+        shift = np.zeros(len(p))
+        for (t, fo), idx in p.groupby(['target', 'fold']).groups.items():
+            other = ((p['target'] == t) & (p['fold'] != fo)).to_numpy()
+            shift[np.asarray(idx)] = np.median(res[other])
+        a = arms.setdefault(arm, {'keys': p[['pid', 'date', 'target']].copy(), 'raw': [], 'cal': [], 'sec': []})
         assert p[['pid', 'date', 'target']].equals(a['keys']), f'{arm} seed {s} 키 다름'
-        a['ae'] += ae
-        a['hit'] += hit
-        a['n'] += 1
-    avg = {}
-    for arm, a in acc.items():
-        avg[arm] = a['keys'].assign(ae=a['ae'] / a['n'], hit30=a['hit'] / a['n'])
-    return avg, pd.DataFrame(rows), pd.DataFrame(secs), {k: v['n'] for k, v in acc.items()}
+        a['raw'].append(np.abs(res))
+        a['cal'].append(np.abs(yt - (yp + shift)))
+        a['sec'].append(float(p.drop_duplicates(['target', 'fold'])['fit_sec'].sum()))
+        a.setdefault('seeds', []).append(int(s))
+    return arms
+
+
+class Boot:
+    def __init__(self, pids, n_seeds, seed=0):
+        self.pids = np.array(sorted(set(pids)))
+        rng = np.random.default_rng(seed)
+        P = len(self.pids)
+        self.W = np.stack([np.bincount(rng.integers(0, P, P), minlength=P) for _ in range(B)]).astype(np.float64)
+        self.S_idx = rng.integers(0, n_seeds, (B, n_seeds))
+
+    def diff(self, pid, D):
+        """D: (시드, 밤) 차이 행렬. 사람·시드를 함께 다시 뽑음."""
+        pos = pd.Index(self.pids).get_indexer(pid)
+        S = np.stack([np.bincount(pos, weights=d, minlength=len(self.pids)) for d in D], axis=1)   # P × 시드
+        N = np.bincount(pos, minlength=len(self.pids)).astype(np.float64)
+        est = S.mean(1).sum() / N.sum()
+        Sb = S[:, self.S_idx].mean(2)                                                         # P × B
+        bs = np.einsum('bp,pb->b', self.W, Sb) / np.maximum(self.W @ N, 1)
+        p = float(np.mean(np.abs(bs - est) >= abs(est))) if est != 0 else 1.0
+        per_seed = (S.sum(0) / N.sum()).round(3).tolist()
+        return {'delta': est, 'ci95_lo': np.percentile(bs, 2.5), 'ci95_hi': np.percentile(bs, 97.5),
+                'ci90_lo': np.percentile(bs, 5), 'ci90_hi': np.percentile(bs, 95), 'p': max(p, 1 / B),
+                'delta_by_seed': per_seed, 'n_nights': int(N.sum())}
 
 
 def main(rd):
@@ -85,76 +89,100 @@ def main(rd):
     meta = json.loads((rd / 'meta.json').read_text(encoding='utf-8'))
     data, split, man, _ = fr.prepare()
     assert fd.table_fingerprint(data.table) == meta['data_fingerprint']
-    avg, seed_rows, secs, nseeds = load(rd)
+    arms = load(rd)
+    ns = {k: len(v['raw']) for k, v in arms.items()}
+    n_seeds = min(ns.values())
+    keys = next(iter(arms.values()))['keys']
+    for a in arms.values():
+        assert a['keys'].equals(keys)
+        assert sorted(a['seeds'])[:n_seeds] == list(range(n_seeds))
     feats = pd.read_parquet(rd / 'features.parquet')[['pid', 'date', 'days_since_last']]
     feats['bucket'] = pd.cut(feats['days_since_last'], [0, 1, 7, np.inf], labels=BK[:3]) \
         .cat.add_categories(BK[3]).fillna(BK[3]).astype(str)
-    any_arm = next(iter(avg.values()))
-    keys = any_arm[['pid', 'date', 'target']].merge(feats[['pid', 'date', 'bucket']], on=['pid', 'date'], how='left')
-    assert keys['bucket'].notna().all()
-    for arm in avg:
-        assert avg[arm][['pid', 'date', 'target']].equals(any_arm[['pid', 'date', 'target']])
-        avg[arm]['bucket'] = keys['bucket'].to_numpy()
-    boot = Boot(any_arm['pid'])
+    bucket = keys.merge(feats[['pid', 'date', 'bucket']], on=['pid', 'date'], how='left')['bucket'].to_numpy()
+    tgt = keys['target'].to_numpy()
+    pid = keys['pid'].to_numpy()
+    boot = Boot(pid, n_seeds)
     T = list(fd.TARGETS)
 
-    def compare(base, new, t, bucket=None):
-        a, b = avg[base], avg[new]
-        m = (a['target'] == t).to_numpy().copy()
-        if bucket:
-            m = m & (a['bucket'] == bucket).to_numpy()
-        r = boot.diff(a.loc[m, 'pid'].to_numpy(), a.loc[m, 'ae'].to_numpy() - b.loc[m, 'ae'].to_numpy())
-        r.update({'target': t, 'base': base, 'new': new, 'subset': bucket or '전체',
-                  'base_mae': a.loc[m, 'ae'].mean(), 'new_mae': b.loc[m, 'ae'].mean(),
+    def stack(arm, kind):
+        a = arms[arm]
+        order = np.argsort(a['seeds'])[:n_seeds]
+        return np.stack([a[kind][i] for i in order])
+
+    def compare(base, new, t, kind, sub=None):
+        m = tgt == t
+        if sub:
+            m = m & (bucket == sub)
+        A, Bm = stack(base, kind)[:, m], stack(new, kind)[:, m]
+        r = boot.diff(pid[m], A - Bm)
+        r.update({'kind': kind, 'target': t, 'subset': sub or '전체', 'base': base, 'new': new,
+                  'base_mae': A.mean(), 'new_mae': Bm.mean(),
                   'equiv_1min': bool(r['ci90_lo'] > -MARGIN and r['ci90_hi'] < MARGIN)})
         return r
 
-    models = [m for m in ['ridge', 'catboost', 'mlp', 'ftt'] if any(k.startswith(m + '__') for k in avg)]
+    models = [m for m in ['ridge', 'catboost', 'catboost_wide', 'mlp', 'ftt'] if f'{m}__base' in arms]
     fams = {}
-    for inp in ('base', 'ext'):
-        rows = [compare(f'{REF}__{inp}', f'{m}__{inp}', t) for m in models if m != REF
-                for t in T if f'{m}__{inp}' in avg and f'{REF}__{inp}' in avg]
-        if rows:
-            fams[f'vs_catboost_{inp}'] = pd.DataFrame(rows)
-    rows = [compare(f'{m}__base', f'{m}__ext', t) for m in models for t in T
-            if f'{m}__base' in avg and f'{m}__ext' in avg]
-    if rows:
-        fams['base_to_ext'] = pd.DataFrame(rows)
-    rows = [compare(f'{REF}__{inp}', f'{m}__{inp}', t, b) for inp in ('base', 'ext') for m in models if m != REF
-            for t in T for b in BK if f'{m}__{inp}' in avg and f'{REF}__{inp}' in avg]
-    if rows:
-        fams['vs_catboost_by_bucket'] = pd.DataFrame(rows)
+    for kind in ('raw', 'cal'):
+        for inp in ('base', 'ext'):
+            fams[f'vs_catboost_{inp}_{kind}'] = pd.DataFrame(
+                [compare(f'{REF}__{inp}', f'{m}__{inp}', t, kind) for m in models if m != REF for t in T])
+    if 'catboost_wide__base' in arms:
+        for inp in ('base', 'ext'):
+            fams[f'vs_catboost_wide_{inp}_cal'] = pd.DataFrame(
+                [compare(f'catboost_wide__{inp}', f'{m}__{inp}', t, 'cal') for m in ('mlp', 'ftt') for t in T])
+    fams['base_to_ext_cal'] = pd.DataFrame([compare(f'{m}__base', f'{m}__ext', t, 'cal') for m in models for t in T])
+    fams['vs_catboost_by_bucket_cal'] = pd.DataFrame(
+        [compare(f'{REF}__{inp}', f'{m}__{inp}', t, 'cal', b) for inp in ('base', 'ext') for m in models
+         if m != REF for t in T for b in BK])
     for k, df in fams.items():
         df['p_holm'] = holm(df['p'])
         df.to_csv(rd / f'analysis_{k}.csv', index=False)
 
-    summ = (seed_rows.groupby(['target', 'arm']).agg(mae=('mae', 'mean'), mae_sd=('mae', 'std'),
-                                                     hit30=('hit30', 'mean'), n_seeds=('seed', 'size'))
-            .reset_index())
-    tsum = secs.groupby('arm')['fit_sec_total'].mean().rename('fit_sec_per_seed').reset_index()
-    bucket_tab = pd.concat([a.assign(arm=k) for k, a in avg.items()]).groupby(['target', 'bucket', 'arm']) \
-        .agg(mae=('ae', 'mean'), n=('ae', 'size')).reset_index()
+    rows = []
+    for arm, a in arms.items():
+        for kind in ('raw', 'cal'):
+            X = stack(arm, kind)
+            for t in T:
+                m = tgt == t
+                per_seed = X[:, m].mean(1)
+                rows.append({'arm': arm, 'kind': kind, 'target': t, 'mae': per_seed.mean(),
+                             'mae_seed_min': per_seed.min(), 'mae_seed_max': per_seed.max(),
+                             'hit30': float((X[:, m] <= 30).mean())})
+    summ = pd.DataFrame(rows)
+    tsum = pd.DataFrame([{'arm': k, 'fit_sec_per_seed': float(np.mean(v['sec']))} for k, v in arms.items()])
+    bucket_tab = pd.DataFrame([{'arm': arm, 'kind': kind, 'target': t, 'bucket': b,
+                                'mae': stack(arm, kind)[:, (tgt == t) & (bucket == b)].mean()}
+                               for arm in arms for kind in ('raw', 'cal') for t in T for b in BK])
     choices = json.loads((rd / 'choices.json').read_text(encoding='utf-8'))
-    ch = pd.DataFrame([{'model': k.split('|')[0], 'input': k.split('|')[1], 'target': k.split('|')[2],
-                        'fold': k.split('|')[3], 'config': json.dumps(v['config'])} for k, v in choices.items()])
+    ch = pd.DataFrame([{'model': k.split('|')[0], 'input': k.split('|')[1], 'config': json.dumps(v['config'])}
+                       for k, v in choices.items()])
     ch_tab = ch.groupby(['model', 'input', 'config']).size().rename('n_target_folds').reset_index()
     for name, df in [('summary', summ), ('fit_time', tsum), ('bucket_mae', bucket_tab), ('choices', ch_tab)]:
         df.to_csv(rd / f'analysis_{name}.csv', index=False)
 
-    cols = ['target', 'subset', 'base', 'new', 'base_mae', 'new_mae', 'delta', 'ci95_lo', 'ci95_hi', 'p_holm', 'n_nights']
-    with pd.option_context('display.width', 250, 'display.max_columns', 30, 'display.max_rows', 500):
-        print('시드 수:', nseeds)
-        print('\n[모델·입력별 MAE(분): 시드 평균 ± 표준편차, ±30분 적중률]')
-        print(summ.pivot_table(index=['target'], columns='arm', values='mae').round(2).to_string())
-        print(summ.round(3).to_string(index=False))
-        print('\n[학습 시간(초, 시드 1회 = 목표 3 × fold 5)]')
+    cols = ['kind', 'target', 'subset', 'base', 'new', 'base_mae', 'new_mae', 'delta', 'ci95_lo', 'ci95_hi',
+            'p_holm', 'equiv_1min', 'delta_by_seed']
+    with pd.option_context('display.width', 260, 'display.max_columns', 30, 'display.max_rows', 500):
+        print('시드 수:', ns, '| bootstrap B =', B, '(사람·시드 함께 재표집)')
+        for kind in ('raw', 'cal'):
+            print(f'\n[MAE(분) {kind}: 시드 평균]')
+            print(summ[summ['kind'] == kind].pivot_table(index='target', columns='arm', values='mae').round(2).to_string())
+        print('\n[시드별 MAE 범위 (raw)]')
+        s = summ[summ['kind'] == 'raw'].assign(range=lambda d: d['mae_seed_max'] - d['mae_seed_min'])
+        print(s.pivot_table(index='target', columns='arm', values='range').round(3).to_string())
+        print('\n[±30분 적중률 (raw)]')
+        print(summ[summ['kind'] == 'raw'].pivot_table(index='target', columns='arm', values='hit30').round(3).to_string())
+        print('\n[학습 시간(초, 시드 1회)]')
         print(tsum.round(0).to_string(index=False))
         for k, df in fams.items():
-            print(f'\n[{k}] Δ = base MAE − new MAE (양수 = new가 나음), Holm은 이 묶음 안에서')
+            if 'bucket' in k:
+                continue
+            print(f'\n[{k}] Δ = base MAE − new MAE (양수 = new가 나음)')
             print(df[cols].round(3).to_string(index=False))
-        print('\n[공백 구간별 MAE]')
-        print(bucket_tab.pivot_table(index=['target', 'bucket'], columns='arm', values='mae').round(2).to_string())
-        print('\n[고른 설정: (모델, 입력)별로 목표·fold 15칸 중 몇 번 골랐나]')
+        print('\n[공백 구간별 CatBoost 대비 (cal)]')
+        print(fams['vs_catboost_by_bucket_cal'][cols].round(3).to_string(index=False))
+        print('\n[고른 설정]')
         print(ch_tab.to_string(index=False))
 
 
