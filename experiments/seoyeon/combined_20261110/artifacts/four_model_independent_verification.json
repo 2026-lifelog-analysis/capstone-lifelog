@@ -1,0 +1,22 @@
+{
+  "complete": true,
+  "prediction_files_independently_checked": 360,
+  "model_target_condition_groups_checked": 24,
+  "paired_model_comparisons_checked": 30,
+  "development_people": 528,
+  "evaluation_nights_per_condition_seed": 247475,
+  "excluded_final_people": 93,
+  "same_inner_partitions_verified": true,
+  "max_file_mae_difference": 0.0,
+  "max_summary_metric_differences": {
+    "mae": 2.842170943040401e-14,
+    "rmse": 2.842170943040401e-14,
+    "within30_percent": 7.105427357601002e-15,
+    "person_mae_mean": 1.4210854715202004e-14
+  },
+  "max_independent_bootstrap_difference": 5.329070518200751e-15,
+  "holm_all_30_reproduced": true,
+  "device_consistency_verified": true,
+  "original_code_edited": false,
+  "raw_data_edited": false
+}

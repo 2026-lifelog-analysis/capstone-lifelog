@@ -1,0 +1,16 @@
+artifacts/*
+!artifacts/analysis/
+!artifacts/feature_spec.json
+!artifacts/original_manifest.json
+!artifacts/requirements.lock.txt
+!artifacts/resume_verification.json
+!artifacts/four_model_independent_verification.json
+!artifacts/publication_test_verification.json
+!artifacts/publication_coverage.json
+!artifacts/publication_consistency.json
+artifacts/analysis/*
+!artifacts/analysis/*.csv
+!artifacts/analysis/analysis_meta.json
+logs/
+.venv/
+*.parquet
