@@ -1,0 +1,14 @@
+{
+  "published_experiment_files_byte_identical": 62,
+  "public_fingerprints_matched": 44,
+  "private_inputs_intentionally_excluded": [
+    "features.parquet",
+    "split.csv"
+  ],
+  "preexisting_tracked_files_unchanged": 47,
+  "raw_files_unchanged": 3,
+  "all_analysis_groups_complete": {
+    "complete": 60
+  },
+  "README_shell_and_python_syntax_valid": true
+}

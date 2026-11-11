@@ -1,0 +1,27 @@
+{
+  "ftt_completed": 90,
+  "new_fits": 84,
+  "previous_fits_reused": 6,
+  "new_fit_identities_unique": true,
+  "resume_events_by_log": {
+    "models_ftt_resume.log": {
+      "skip": 6,
+      "start": 38,
+      "complete": 38
+    },
+    "models_ftt_grouped.log": {
+      "skip": 2,
+      "start": 46,
+      "complete": 46
+    }
+  },
+  "previous_prediction_files_unchanged": 1392,
+  "transition_prediction_files_unchanged": 1468,
+  "original_tracked_files_unchanged": 47,
+  "original_raw_files_unchanged": 3,
+  "original_head_unchanged": true,
+  "original_worktree_clean": true,
+  "all_groups_complete": 60,
+  "final_holdout_scored": false,
+  "runtime_change": "three seeds grouped per target/fold/condition in unchanged runner"
+}

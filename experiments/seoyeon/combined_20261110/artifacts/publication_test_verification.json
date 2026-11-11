@@ -1,0 +1,10 @@
+{
+  "tests": 47,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "coverage_percent": 85.53008595988538,
+  "code_statements": 698,
+  "test_seconds": 11.481,
+  "production_model_fits_rerun": 0
+}
