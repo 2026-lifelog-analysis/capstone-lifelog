@@ -13,8 +13,10 @@ import pandas as pd
 src, outd = sys.argv[1], sys.argv[2]
 os.makedirs(outd, exist_ok=True)
 df = pd.read_pickle(src).sort_values(['pid', 'date']).reset_index(drop=True)
-TARGETS = ['fatigue_label', 'mood_label', 'readiness_label', 'sleep_quality_label', 'soreness_label', 'stress_label', 'tst_label']
-NPERM = 200
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import targets  # noqa: E402
+TARGETS = targets(df)
+NPERM = int(os.environ.get('NPERM', '200'))
 rng = np.random.default_rng(0)
 
 

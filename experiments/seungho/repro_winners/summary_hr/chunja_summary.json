@@ -1,0 +1,23 @@
+{
+ "mean": {
+  "ll_global": 0.6872139653808206,
+  "ll_personal": 0.6496867121029103,
+  "ll_model": 0.6398300644874704,
+  "ll_shrunk": 0.6368339636331612,
+  "prior_gain": 0.03752725327791031,
+  "sensor_gain": 0.01285274846974902
+ },
+ "mean_prior_gain_ci": [
+  0.020139418849067,
+  0.05730816658842692
+ ],
+ "mean_sensor_gain_ci": [
+  0.00950263942968133,
+  0.016151319911335116
+ ],
+ "law_pearson": 0.9942489971612356,
+ "icc_pearson": 0.28671869963789387,
+ "n_people": 139,
+ "criterion_prior": true,
+ "criterion_sensor_small": true
+}

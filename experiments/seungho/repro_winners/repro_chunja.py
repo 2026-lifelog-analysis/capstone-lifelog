@@ -17,17 +17,12 @@ src, outd = sys.argv[1], sys.argv[2]
 os.makedirs(outd, exist_ok=True)
 df = pd.read_pickle(src).sort_values(['pid', 'date']).reset_index(drop=True)
 
-TARGETS = ['fatigue_label', 'mood_label', 'readiness_label', 'sleep_quality_label', 'soreness_label', 'stress_label', 'tst_label']
-ALL_F = [c for c in df.columns if c.startswith(('a_', 's_', 'sp_')) or c == 'dow']
-NIGHT_T = [c for c in ALL_F if c.startswith('s_')]  # sleep that ended on day t
-EPS = 1e-6
-GAP = 7
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import targets, feature_cols, ll, icc1, GAP  # noqa: E402
+TARGETS = targets(df)
 LGB = dict(n_estimators=200, learning_rate=0.05, num_leaves=15, min_child_samples=20, random_state=0, n_jobs=2, verbose=-1)
 
 
-def ll(y, p):
-    p = np.clip(p, EPS, 1 - EPS)
-    return -(y * np.log(p) + (1 - y) * np.log(1 - p))
 
 
 def split_person(d):
@@ -40,15 +35,6 @@ def split_person(d):
     return pd.concat(tr), pd.concat(ev)
 
 
-def icc1(y, groups):
-    """one-way random-effects ICC(1)."""
-    d = pd.DataFrame({'y': y, 'g': groups})
-    k = d.groupby('g').size(); n = len(k); N = len(d)
-    gm = d['y'].mean(); means = d.groupby('g')['y'].mean()
-    msb = (k * (means - gm) ** 2).sum() / (n - 1)
-    msw = ((d['y'] - d['g'].map(means)) ** 2).sum() / (N - n)
-    k0 = (N - (k ** 2).sum() / N) / (n - 1)
-    return float((msb - msw) / (msb + (k0 - 1) * msw))
 
 
 def fit_predict(Xtr, ytr, Xte):
@@ -59,7 +45,7 @@ def fit_predict(Xtr, ytr, Xte):
 
 rows, per_person = [], []
 for t in TARGETS:
-    feats = [c for c in ALL_F if not (t == 'tst_label' and c in NIGHT_T)]
+    feats = feature_cols(df, t)
     d = df[df[t].notna()].copy()
     tr, ev = split_person(d)
     glob_p = tr[t].mean()

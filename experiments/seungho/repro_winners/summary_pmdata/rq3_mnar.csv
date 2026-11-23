@@ -1,0 +1,14 @@
+target,sensor,n_people,mean_std_diff
+tst_label,a_steps,13,0.034205288008524154
+fatigue_label,a_steps,14,-0.013309378746288911
+fatigue_label,s_tst_min,14,-0.012069540718882808
+mood_label,a_steps,14,-0.013309378746288911
+mood_label,s_tst_min,14,-0.012069540718882808
+readiness_label,a_steps,14,-0.013309378746288911
+readiness_label,s_tst_min,14,-0.012069540718882808
+sleep_quality_label,a_steps,14,-0.013309378746288911
+sleep_quality_label,s_tst_min,14,-0.012069540718882808
+soreness_label,a_steps,14,-0.013309378746288911
+soreness_label,s_tst_min,14,-0.012069540718882808
+stress_label,a_steps,14,-0.013309378746288911
+stress_label,s_tst_min,14,-0.012069540718882808

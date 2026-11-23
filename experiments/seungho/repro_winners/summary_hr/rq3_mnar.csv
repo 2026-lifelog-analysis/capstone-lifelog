@@ -1,0 +1,10 @@
+target,sensor,n_people,mean_std_diff
+tst_label,a_steps,137,0.05029315053489282
+sleep_quality_label,a_steps,137,0.012314135953758416
+sleep_quality_label,s_tst_min,136,0.04933109279741705
+cognitive_energy_label,a_steps,137,0.012314135953758416
+cognitive_energy_label,s_tst_min,136,0.04933109279741705
+physical_energy_label,a_steps,137,0.012314135953758416
+physical_energy_label,s_tst_min,136,0.04933109279741705
+emotional_energy_label,a_steps,137,0.012314135953758416
+emotional_energy_label,s_tst_min,136,0.04933109279741705
