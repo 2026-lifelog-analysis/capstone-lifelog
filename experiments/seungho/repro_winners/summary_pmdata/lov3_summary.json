@@ -1,0 +1,5 @@
+{
+ "n_targets_block_drift": 3,
+ "criterion": true,
+ "nperm": 200
+}
