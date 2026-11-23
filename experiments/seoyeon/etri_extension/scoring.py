@@ -58,7 +58,7 @@ def paired_person_bootstrap(losses: pd.DataFrame, n_boot: int = DEFAULT_N_BOOT,
 
 def holm_adjust(p_values: dict[str, float]) -> dict[str, float]:
     """Holm 보정 p값. 작은 값부터 (m − 순위)를 곱하고 단조 증가하도록 맞춘다."""
-    ordered = sorted(p_values, key=p_values.get)
+    ordered = sorted(p_values, key=lambda k: p_values[k])
     m = len(ordered)
     adjusted: dict[str, float] = {}
     running = 0.0

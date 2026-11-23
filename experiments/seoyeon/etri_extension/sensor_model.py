@@ -53,8 +53,11 @@ def _mixed_rates(fit: pd.DataFrame, target: str) -> pd.Series:
 
 
 def _offset(rows: pd.DataFrame, rates: pd.Series) -> np.ndarray:
-    rate = rows["subject_id"].map(rates).to_numpy(dtype=float)
-    return np.log(rate / (1 - rate))
+    rate = rows["subject_id"].map(rates)
+    missing = sorted(rows.loc[rate.isna(), "subject_id"].unique())
+    if missing:
+        raise ValueError(f"섞은 비율에 없는 사람: {missing}")
+    return np.log(rate.to_numpy(dtype=float) / (1 - rate.to_numpy(dtype=float)))
 
 
 def _fit_predict(fit: pd.DataFrame, held: pd.DataFrame, target: str,

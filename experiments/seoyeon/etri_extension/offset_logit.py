@@ -26,7 +26,13 @@ class OffsetLogit:
 
 
 def _sigmoid(z: np.ndarray) -> np.ndarray:
-    return 1 / (1 + np.exp(-z))
+    z = np.asarray(z, dtype=float)
+    pos = z >= 0
+    result = np.empty_like(z)
+    result[pos] = 1.0 / (1.0 + np.exp(-z[pos]))
+    exp_z = np.exp(z[~pos])
+    result[~pos] = exp_z / (1.0 + exp_z)
+    return result
 
 
 def fit_offset_logistic(x: np.ndarray, y: np.ndarray, offset: np.ndarray,
